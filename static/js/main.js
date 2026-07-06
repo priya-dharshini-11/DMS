@@ -1,0 +1,1 @@
+console.log("Dead Man's Switch Vault loaded");

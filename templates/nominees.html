@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Nominees</h3>
+<form method="post" class="card card-body mb-4">
+  <input class="form-control mb-3" name="name" placeholder="Name" required>
+  <input class="form-control mb-3" type="email" name="email" placeholder="Email" required>
+  <input class="form-control mb-3" name="relation" placeholder="Relation" required>
+  <button class="btn btn-primary">Add Nominee</button>
+</form>
+
+<table class="table table-bordered">
+  <thead><tr><th>Name</th><th>Email</th><th>Relation</th></tr></thead>
+  <tbody>
+    {% for row in data %}
+    <tr>
+      <td>{{ row.name }}</td>
+      <td>{{ row.email }}</td>
+      <td>{{ row.relation }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

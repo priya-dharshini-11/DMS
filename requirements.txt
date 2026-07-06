@@ -1,0 +1,7 @@
+Flask
+Flask-MySQLdb
+Flask-Mail
+APScheduler
+python-dotenv
+cryptography
+Werkzeug

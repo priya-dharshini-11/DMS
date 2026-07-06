@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Activity Monitoring</h3>
+{% if activity %}
+<p>Last active at: <strong>{{ activity.last_active_at }}</strong></p>
+{% else %}
+<p>No activity recorded yet.</p>
+{% endif %}
+{% endblock %}

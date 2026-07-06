@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Admin Panel</h3>
+<table class="table table-striped">
+  <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Verified</th></tr></thead>
+  <tbody>
+    {% for user in users %}
+    <tr>
+      <td>{{ user.id }}</td>
+      <td>{{ user.name }}</td>
+      <td>{{ user.email }}</td>
+      <td>{{ user.is_verified }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

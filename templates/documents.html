@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Documents</h3>
+<form method="post" enctype="multipart/form-data" class="card card-body mb-4">
+  <input type="file" name="file" class="form-control mb-3" required>
+  <button class="btn btn-primary">Upload</button>
+</form>
+
+<table class="table table-bordered">
+  <thead><tr><th>File Name</th><th>Path</th><th>Created</th></tr></thead>
+  <tbody>
+    {% for row in data %}
+    <tr>
+      <td>{{ row.file_name }}</td>
+      <td>{{ row.file_path }}</td>
+      <td>{{ row.created_at }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
