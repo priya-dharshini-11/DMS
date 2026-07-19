@@ -4,10 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Dead Man's Switch Vault{% endblock %}</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+   
+     <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/bootstrap.css') }}">
+  <!-- <script defer src="./bootstrap/dist/js/bootstrap.js"></script> -->
+  <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"> -->
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>
+<body >
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
   <div class="container">
     <a class="navbar-brand" href="/">DMS Vault</a>
@@ -17,13 +21,9 @@
     <div class="collapse navbar-collapse" id="navbarsExample">
       <ul class="navbar-nav ms-auto">
         <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
-        <li class="nav-item"><a class="nav-link" href="/register">Register</a></li>
         <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
         <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
-        <li class="nav-item"><a class="nav-link" href="/vault">Vault</a></li>
-        <li class="nav-item"><a class="nav-link" href="/nominees">Nominees</a></li>
-        <li class="nav-item"><a class="nav-link" href="/activity">Activity</a></li>
-        <li class="nav-item"><a class="nav-link" href="/admin">Admin</a></li>
+        <li class="nav-item"><a class="nav-link" href="/logout">Logout</a></li>
       </ul>
     </div>
   </div>
@@ -40,7 +40,8 @@
   {% block content %}{% endblock %}
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script> 
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script> -->
 <script src="/static/js/main.js"></script>
 </body>
 </html>

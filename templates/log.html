@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .custom{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 80vh;
+        flex-direction: column;
+    }
+    .btns{
+        width: 100%;;
+    }
+</style>
+<div class="custom">
+    <img src="../static/Untitled design (1).png" alt="logoimage" class="img-circle" width="500"height="300">
+<div class="btn-group btns" >
+  <a href="/usrlogin" class="btn btn-primary w-50 p-3 m-3">User</a>
+  <a href="/admlogin" class="btn btn-success w-50 p-3 m-3">Admin</a>
+</div>
+<br>
+<p>New user?</p><p>Register now: <a href="/register">Register</a></p>
+</div>
+{%endblock%}

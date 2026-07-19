@@ -1,2 +1,4 @@
-body { background: #f7f9fc; }
+body { 
+     background: linear-gradient(45deg,rgba(238, 179, 238, 0.667),rgba(194, 229, 194, 0.733)); 
+}
 .card { border-radius: 12px; }

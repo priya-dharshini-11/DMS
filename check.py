@@ -5,15 +5,12 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from apscheduler.schedulers.background import BackgroundScheduler
 from config import Config
 import os
-# from flask_bootstrap import Bootstrap
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
-# app.config['BOOTSTRAP_SERVE_LOCAL'] = True
 app.config.from_object(Config)
 mysql = MySQL(app)
 mail = Mail(app)
-# Bootstrap(app)
 scheduler = BackgroundScheduler(daemon=True)
 
 UPLOAD_FOLDER = "uploads"
@@ -45,7 +42,7 @@ def check_inactive_users():
     users = cur.fetchall()
     for user in users:
         last_active = user["last_active_at"]
-        if last_active and datetime.now() - last_active > timedelta(days=1):
+        if last_active and datetime.now() - last_active > timedelta(days=30):
             send_email(user["email"], "Dead Man's Switch Reminder", "Please confirm you are active.")
     cur.close()
 
@@ -66,11 +63,8 @@ def register():
         flash("Registration successful. Please login.")
         return redirect(url_for("login"))
     return render_template("register.html")
-@app.route("/login")
-def log():
-    return render_template('log.html')
 
-@app.route("/usrlogin", methods=["GET", "POST"])
+@app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         email = request.form["email"]
@@ -87,23 +81,6 @@ def login():
         flash("Invalid credentials")
     return render_template("login.html")
 
-@app.route("/admlogin", methods=["GET", "POST"])
-def alogin():
-    if request.method == "POST":
-        email = request.form["email"]
-        password = request.form["password"]
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT * FROM users WHERE email=%s", (email,))
-        user = cur.fetchone()
-        cur.close()
-        if user and check_password_hash(user["password_hash"], password):
-            session["user_id"] = user["id"]
-            session["name"] = user["name"]
-            update_activity(user["id"])
-            return redirect(url_for("admin"))
-        flash("Invalid credentials")
-    return render_template("alogin.html")
-
 @app.route("/logout")
 def logout():
     session.clear()
@@ -112,7 +89,7 @@ def logout():
 @app.route("/dashboard")
 def dashboard():
     if "user_id" not in session:
-        return redirect(url_for("log"))
+        return redirect(url_for("login"))
     update_activity(session["user_id"])
     return render_template("dashboard.html", name=session["name"])
 
@@ -159,7 +136,7 @@ def activity():
     cur.execute("SELECT * FROM activity_logs WHERE user_id=%s", (session["user_id"],))
     data = cur.fetchone()
     cur.close()
-    return render_template(r"activity.html", activity=data)
+    return render_template("activity.html", activity=data)
 
 @app.route("/admin")
 def admin():
