@@ -15,16 +15,44 @@
 <body>
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container">
-      <a class="navbar-brand" href="/">DMS Vault</a>
+      <a class="navbar-brand" href="{{ url_for('index') }}">DMS Vault</a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsExample">
         <span class="navbar-toggler-icon"></span>
       </button>
+      
       <div class="collapse navbar-collapse" id="navbarsExample">
         <ul class="navbar-nav ms-auto">
-          <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
-          <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
-          <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
-          <li class="nav-item"><a class="nav-link" href="/logout">Logout</a></li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+          </li>
+
+          {% if session.get('role') == 'user' %}
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+          </li>
+          {% endif %}
+
+          {% if session.get('role') == 'admin' %}
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
+          </li>
+          {% endif %}
+
+          {% if not session.get('role') %}
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('log') }}">Login</a>
+          </li>
+          {% endif %}
+
+          {% if session.get('role') %}
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+          </li>
+          {% endif %}
+
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('about') }}">About</a>
+          </li>
         </ul>
       </div>
     </div>

@@ -56,16 +56,31 @@ def index():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        name = request.form["name"]
-        email = request.form["email"]
+        name = request.form["name"].strip()
+        email = request.form["email"].strip().lower()
         password = generate_password_hash(request.form["password"])
+        admin_key = request.form.get("admin_key", "").strip()
+
+        role = "user"
+        if admin_key:
+            if admin_key == app.config["ADMIN_REGISTRATION_KEY"]:
+                role = "admin"
+            else:
+                flash("Invalid admin registration key.")
+                return redirect(url_for("register"))
+
         cur = mysql.connection.cursor()
-        cur.execute("INSERT INTO users (name, email, password_hash) VALUES (%s, %s, %s)", (name, email, password))
+        cur.execute(
+            "INSERT INTO users (name, email, password_hash, role) VALUES (%s, %s, %s, %s)",
+            (name, email, password, role)
+        )
         mysql.connection.commit()
         cur.close()
+
         flash("Registration successful. Please login.")
-        return redirect(url_for("login"))
+        return redirect(url_for("log"))
     return render_template("register.html")
+
 @app.route("/login")
 def log():
     return render_template('log.html')
@@ -73,35 +88,44 @@ def log():
 @app.route("/usrlogin", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        email = request.form["email"]
+        email = request.form["email"].strip().lower()
         password = request.form["password"]
+
         cur = mysql.connection.cursor()
-        cur.execute("SELECT * FROM users WHERE email=%s", (email,))
+        cur.execute("SELECT * FROM users WHERE email=%s AND role='user'", (email,))
         user = cur.fetchone()
         cur.close()
+
         if user and check_password_hash(user["password_hash"], password):
+            session.clear()
             session["user_id"] = user["id"]
             session["name"] = user["name"]
+            session["role"] = "user"
             update_activity(user["id"])
             return redirect(url_for("dashboard"))
-        flash("Invalid credentials")
+
+        flash("Invalid user credentials")
     return render_template("login.html")
 
-@app.route("/admlogin", methods=["GET", "POST"])
+@app.route("/alogin", methods=["GET", "POST"])
 def alogin():
     if request.method == "POST":
-        email = request.form["email"]
+        email = request.form["email"].strip().lower()
         password = request.form["password"]
+
         cur = mysql.connection.cursor()
-        cur.execute("SELECT * FROM users WHERE email=%s", (email,))
-        user = cur.fetchone()
+        cur.execute("SELECT * FROM users WHERE email=%s AND role='admin'", (email,))
+        admin = cur.fetchone()
         cur.close()
-        if user and check_password_hash(user["password_hash"], password):
-            session["user_id"] = user["id"]
-            session["name"] = user["name"]
-            update_activity(user["id"])
-            return redirect(url_for("admin"))
-        flash("Invalid credentials")
+
+        if admin and check_password_hash(admin["password_hash"], password):
+            session.clear()
+            session["admin_id"] = admin["id"]
+            session["admin_name"] = admin["name"]
+            session["role"] = "admin"
+            return redirect(url_for("admin_dashboard"))
+
+        flash("Invalid admin credentials")
     return render_template("alogin.html")
 
 @app.route("/logout")
@@ -161,13 +185,59 @@ def activity():
     cur.close()
     return render_template(r"activity.html", activity=data)
 
-@app.route("/admin")
-def admin():
+@app.route("/admin-dashboard")
+def admin_dashboard():
+    if session.get("role") != "admin" or "admin_id" not in session:
+        return redirect(url_for("alogin"))
+
     cur = mysql.connection.cursor()
-    cur.execute("SELECT * FROM users")
-    users = cur.fetchall()
-    cur.close()
-    return render_template("admin.html", users=users)
+
+    cur.execute("SELECT COUNT(*) AS total_users FROM users where role='user' ")
+    total_users = cur.fetchone()["total_users"]
+
+    cur.execute("SELECT COUNT(*) AS active_users FROM activity_logs WHERE last_active_at >= NOW() - INTERVAL 30 DAY")
+    active_users = cur.fetchone()["active_users"]
+
+    cur.execute("SELECT COUNT(*) AS total_vault_items FROM vault_data")
+    total_vault_items = cur.fetchone()["total_vault_items"]
+
+    cur.execute("SELECT COUNT(*) AS total_releases FROM releases")
+    total_releases = cur.fetchone()["total_releases"]
+
+    cur.execute("SELECT COUNT(*) AS verified_users FROM users WHERE is_verified = 1")
+    verified_users = cur.fetchone()["verified_users"]
+
+    cur.execute("SELECT COUNT(*) AS total_admins FROM users WHERE role = 'admin'")
+    total_admins = cur.fetchone()["total_admins"]
+
+    cur.execute("""
+    SELECT
+        u.id,
+        u.name,
+        COUNT(DISTINCT v.id) AS vault_count,
+        COUNT(DISTINCT n.id) AS nominee_count
+    FROM users u
+    LEFT JOIN vault_data v ON u.id = v.user_id
+    LEFT JOIN nominees n ON u.id = n.user_id
+    GROUP BY u.id, u.name
+    ORDER BY u.id
+    """)
+    user_stats = cur.fetchall()
+
+    return render_template(
+    "admin.html",
+    total_users=total_users,
+    active_users=active_users,
+    total_vault_items=total_vault_items,
+    total_releases=total_releases,
+    verified_users=verified_users,
+    total_admins=total_admins,
+    user_stats=user_stats,
+    admin_name=session.get("admin_name")
+)
+@app.route("/about")
+def about():
+    return render_template("about.html")
 
 if __name__ == "__main__":
     scheduler.add_job(func=check_inactive_users, trigger="interval", hours=24)

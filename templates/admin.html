@@ -1,17 +1,104 @@
 {% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+
 {% block content %}
-<h3>Admin Panel</h3>
-<table class="table table-striped">
-  <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Verified</th></tr></thead>
-  <tbody>
-    {% for user in users %}
-    <tr>
-      <td>{{ user.id }}</td>
-      <td>{{ user.name }}</td>
-      <td>{{ user.email }}</td>
-      <td>{{ user.is_verified }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">Admin Dashboard</h2>
+    <p class="text-muted mb-0">Welcome, {{ admin_name }}</p>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h6 class="text-muted">Total Users</h6>
+        <h2 class="mb-0">{{ total_users }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h6 class="text-muted">Active Users</h6>
+        <h2 class="mb-0">{{ active_users }}</h2>
+        <small class="text-muted">Last 30 days</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h6 class="text-muted">Verified Users</h6>
+        <h2 class="mb-0">{{ verified_users }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h6 class="text-muted">Total Admins</h6>
+        <h2 class="mb-0">{{ total_admins }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h6 class="text-muted">Total Vault Items</h6>
+        <h2 class="mb-0">{{ total_vault_items }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h6 class="text-muted">Total Releases</h6>
+        <h2 class="mb-0">{{ total_releases }}</h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm border-0">
+  <div class="card-header bg-dark text-white">
+    <h5 class="mb-0">User Summary</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-bordered align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 10%;">User ID</th>
+            <th style="width: 30%;">Name</th>
+            <th style="width: 20%;">Vault Count</th>
+            <th style="width: 20%;">Nominee Count</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if user_stats %}
+            {% for row in user_stats %}
+            <tr>
+              <td>{{ row.id }}</td>
+              <td>{{ row.name }}</td>
+              <td>{{ row.vault_count }}</td>
+              <td>{{ row.nominee_count }}</td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="4" class="text-center text-muted">No user data available</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}
