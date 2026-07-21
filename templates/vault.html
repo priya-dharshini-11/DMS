@@ -1,28 +1,28 @@
 {% extends "base.html" %}
-{% block content %}
-<h3>Vault Data</h3>
-<form method="post" class="card card-body mb-4">
-  <input class="form-control mb-3" name="title" placeholder="Title" required>
-  <textarea class="form-control mb-3" name="content" placeholder="Content" rows="4" required></textarea>
-  <button class="btn btn-primary">Save</button>
-</form>
+{% block title %}Add Vault Item{% endblock %}
 
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th>Title</th>
-      <th>Content</th>
-      <th>Created</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for row in data %}
-    <tr>
-      <td>{{ row.title }}</td>
-      <td>{{ row.content }}</td>
-      <td>{{ row.created_at }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+{% block content %}
+<div class="card shadow-sm p-4">
+  <h3 class="mb-4">Add Vault Item</h3>
+
+  <form method="POST" enctype="multipart/form-data">
+    <div class="mb-3">
+      <label class="form-label">Title</label>
+      <input type="text" name="title" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Text Content</label>
+      <textarea name="content" class="form-control" rows="5" placeholder="Enter text content here"></textarea>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Or Upload File</label>
+      <input type="file" name="file" class="form-control">
+      <small class="text-muted">Allowed: images, pdf, doc, docx, xls, xlsx</small>
+    </div>
+
+    <button type="submit" class="btn btn-dark">Save Vault Item</button>
+  </form>
+</div>
 {% endblock %}

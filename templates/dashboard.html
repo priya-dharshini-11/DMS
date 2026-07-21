@@ -3,7 +3,8 @@
 <h3>Welcome, {{ name }}</h3>
 <div class="row g-3 mt-2">
   
-  <a href="/vault" class="btn btn-primary w-50 p-30 m-3">Manage Vault Items</a>
+  <a href="/vault" class="btn btn-primary w-50 p-30 m-3">Add Vault Items</a>
+  <a href="{{ url_for('view_vault') }}" class="btn btn-primary w-50 p-30 m-3">View Vault Items</a>
   <a href="/nominees" class="btn btn-primary w-50 p-30 m-3">Manage Nominees</a>
   <a href="/activity" class="btn btn-primary w-50 p-30 m-3">Track Activity</a>
 </div>

@@ -1,12 +1,14 @@
-from flask import Flask, render_template, request, redirect, session, flash, url_for
+from flask import Flask, render_template, request, redirect, session, flash, url_for, send_from_directory
 from flask_mysqldb import MySQL
 from flask_mail import Mail, Message
+from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from apscheduler.schedulers.background import BackgroundScheduler
 from config import Config
 import os
 # from flask_bootstrap import Bootstrap
 from datetime import datetime, timedelta
+
 
 app = Flask(__name__)
 # app.config['BOOTSTRAP_SERVE_LOCAL'] = True
@@ -18,7 +20,25 @@ scheduler = BackgroundScheduler(daemon=True)
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "pdf", "doc", "docx", "xls", "xlsx"}
+
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route("/uploads/<filename>")
+def uploaded_file(filename):
+    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)
+
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
+
+
 
 def send_email(to, subject, body):
     msg = Message(subject, recipients=[to], body=body)
@@ -98,9 +118,10 @@ def login():
 
         if user and check_password_hash(user["password_hash"], password):
             session.clear()
+            session.permanent = True
             session["user_id"] = user["id"]
             session["name"] = user["name"]
-            session["role"] = "user"
+            session["role"] = "user" 
             update_activity(user["id"])
             return redirect(url_for("dashboard"))
 
@@ -120,6 +141,7 @@ def alogin():
 
         if admin and check_password_hash(admin["password_hash"], password):
             session.clear()
+            session.permanent = True
             session["admin_id"] = admin["id"]
             session["admin_name"] = admin["name"]
             session["role"] = "admin"
@@ -143,19 +165,82 @@ def dashboard():
 @app.route("/vault", methods=["GET", "POST"])
 def vault():
     if "user_id" not in session:
-        return redirect(url_for("login"))
+        return redirect(url_for("log"))
     cur = mysql.connection.cursor()
     if request.method == "POST":
-        title = request.form["title"]
-        content = request.form["content"]
-        cur.execute("INSERT INTO vault_data (user_id, title, content) VALUES (%s, %s, %s)",
-                    (session["user_id"], title, content))
-        mysql.connection.commit()
-        flash("Vault item added")
-    cur.execute("SELECT * FROM vault_data WHERE user_id=%s", (session["user_id"],))
+        title = request.form["title"].strip()
+        content = request.form.get("content","").strip()
+        file =request.files.get("file")
+
+        if file and file.filename:
+            if not allowed_file(file.filename):
+                flash("File type not allowed")
+                return redirect(url_for("vault"))
+
+            os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+            file.save(file_path)
+
+            cur.execute("""
+                INSERT INTO vault_data (user_id, title, item_type, file_name, file_path, file_type)
+                VALUES (%s, %s, 'file', %s, %s, %s)
+            """, (session["user_id"], title, filename, file_path, file.mimetype))
+            mysql.connection.commit()
+            flash("File vault item added")
+
+        else:
+            cur.execute("""
+                INSERT INTO vault_data (user_id, title, item_type, content)
+                VALUES (%s, %s, 'text', %s)
+            """, (session["user_id"], title, content))
+            mysql.connection.commit()
+            flash("Text vault item added")
+
+    cur.execute("SELECT * FROM vault_data WHERE user_id=%s ORDER BY created_at DESC", (session["user_id"],))
     data = cur.fetchall()
     cur.close()
+
     return render_template("vault.html", data=data)
+
+@app.route("/view-vault")
+def view_vault():
+    if "user_id" not in session:
+        return redirect(url_for("log"))
+
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT * FROM vault_data WHERE user_id=%s ORDER BY created_at DESC", (session["user_id"],))
+    data = cur.fetchall()
+    cur.close()
+
+    return render_template("view_vault.html", data=data)
+
+@app.route("/delete-vault/<int:item_id>", methods=["POST"])
+def delete_vault(item_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    cur = mysql.connection.cursor()
+
+    cur.execute("SELECT * FROM vault_data WHERE id=%s AND user_id=%s", (item_id, session["user_id"]))
+    item = cur.fetchone()
+
+    if not item:
+        cur.close()
+        flash("Vault item not found")
+        return redirect(url_for("view_vault"))
+    
+    if item["item_type"] == "file" and item["file_name"]:
+        file_path = os.path.join(app.config["UPLOAD_FOLDER"], item["file_name"])
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+    cur.execute("DELETE FROM vault_data WHERE id=%s AND user_id=%s", (item_id, session["user_id"]))
+    mysql.connection.commit()
+    cur.close()
+
+    flash("Vault item deleted")
+    return redirect(url_for("view_vault"))
 
 @app.route("/nominees", methods=["GET", "POST"])
 def nominees():
