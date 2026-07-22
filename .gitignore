@@ -211,6 +211,4 @@ HEAD
 #nodes
 node_modules
 package-lock.json
-main
-pylist.jpeg
-pylist.md
+
