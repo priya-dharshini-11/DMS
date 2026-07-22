@@ -206,9 +206,11 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+HEAD
 
 #nodes
 node_modules
 package-lock.json
+main
 pylist.jpeg
 pylist.md
