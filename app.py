@@ -4,6 +4,9 @@ from flask_mail import Mail, Message
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from apscheduler.schedulers.background import BackgroundScheduler
+from dotenv import load_dotenv
+
+load_dotenv()
 from config import Config
 import os
 # from flask_bootstrap import Bootstrap
@@ -20,8 +23,17 @@ scheduler = BackgroundScheduler(daemon=True)
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "pdf", "doc", "docx", "xls", "xlsx"}
 
+ALLOWED_EXTENSIONS = {
+    "png", "jpg", "jpeg", "gif",
+    "pdf",
+    "doc", "docx",
+    "xls", "xlsx",
+    "ppt", "pptx",
+    "txt", "md",
+    "csv",
+    "ods"
+}
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 

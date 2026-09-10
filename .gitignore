@@ -212,3 +212,5 @@ HEAD
 node_modules
 package-lock.json
 
+# User-uploaded DMS vault files
+uploads/
