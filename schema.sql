@@ -7,6 +7,7 @@ CREATE TABLE users (
     email VARCHAR(120) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     is_verified TINYINT(1) DEFAULT 0,
+    role VARCHAR(20) NOT NULL DEFAULT 'user',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -14,7 +15,11 @@ CREATE TABLE vault_data (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     title VARCHAR(150) NOT NULL,
-    content TEXT NOT NULL,
+    item_type VARCHAR(20) NOT NULL DEFAULT 'text',
+    content TEXT NULL,
+    file_name VARCHAR(255) NULL,
+    file_path VARCHAR(500) NULL,
+    file_type VARCHAR(100) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
