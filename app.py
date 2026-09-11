@@ -198,6 +198,7 @@ def vault():
     if request.method == "POST":
         title = request.form["title"].strip()
         content = request.form.get("content","").strip()
+        release_enabled = 1 if request.form.get("release_enabled") == "on" else 0
         file =request.files.get("file")
 
         if file and file.filename:
@@ -214,17 +215,18 @@ def vault():
 
             cur.execute("""
             INSERT INTO vault_data
-            (user_id, title, item_type, file_name, original_file_name, file_path, file_type)
-            VALUES (%s, %s, 'file', %s, %s, %s, %s)
-            """, (session["user_id"],title,unique_filename,original_filename,file_path,file.mimetype))
+            (user_id, title, item_type, file_name, original_file_name, file_path, file_type, release_enabled)
+            VALUES (%s, %s, 'file', %s, %s, %s, %s, %s)
+            """, (session["user_id"],title,unique_filename,original_filename,file_path,file.mimetype,release_enabled))
             mysql.connection.commit()
             flash("File vault item added")
 
         else:
             cur.execute("""
-                INSERT INTO vault_data (user_id, title, item_type, content)
-                VALUES (%s, %s, 'text', %s)
-            """, (session["user_id"], title, content))
+            INSERT INTO vault_data
+            (user_id, title, item_type, content, release_enabled)
+            VALUES (%s, %s, 'text', %s, %s)
+            """, (session["user_id"], title, content, release_enabled))
             mysql.connection.commit()
             flash("Text vault item added")
 
