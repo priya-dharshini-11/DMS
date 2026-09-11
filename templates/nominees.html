@@ -9,15 +9,31 @@
 </form>
 
 <table class="table table-bordered">
-  <thead><tr><th>Name</th><th>Email</th><th>Relation</th></tr></thead>
+  <thead>
+  <tr>
+    <th>Name</th>
+    <th>Email</th>
+    <th>Relation</th>
+    <th>Action</th>
+  </tr>
+  </thead>
   <tbody>
-    {% for row in data %}
-    <tr>
-      <td>{{ row.name }}</td>
-      <td>{{ row.email }}</td>
-      <td>{{ row.relation }}</td>
-    </tr>
-    {% endfor %}
+  {% for row in data %}
+  <tr>
+    <td>{{ row.name }}</td>
+    <td>{{ row.email }}</td>
+    <td>{{ row.relation }}</td>
+    <td>
+      <form method="post"
+            action="{{ url_for('delete_nominee', nominee_id=row.id) }}"
+            onsubmit="return confirm('Are you sure you want to delete this nominee?');">
+        <button type="submit" class="btn btn-danger btn-sm">
+          Delete
+        </button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
   </tbody>
 </table>
 {% endblock %}

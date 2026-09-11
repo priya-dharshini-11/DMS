@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from config import Config
 import os
+import re
 import uuid
 # from flask_bootstrap import Bootstrap
 from datetime import datetime, timedelta
@@ -276,19 +277,108 @@ def delete_vault(item_id):
 def nominees():
     if "user_id" not in session:
         return redirect(url_for("login"))
+
     cur = mysql.connection.cursor()
+
     if request.method == "POST":
-        name = request.form["name"]
-        email = request.form["email"]
-        relation = request.form["relation"]
-        cur.execute("INSERT INTO nominees (user_id, name, email, relation) VALUES (%s, %s, %s, %s)",
-                    (session["user_id"], name, email, relation))
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        relation = request.form.get("relation", "").strip()
+
+        # Validate name
+        if not name:
+            flash("Nominee name cannot be empty.")
+            cur.close()
+            return redirect(url_for("nominees"))
+
+        if len(name) > 100:
+            flash("Nominee name is too long.")
+            cur.close()
+            return redirect(url_for("nominees"))
+
+        # Validate email
+        email_pattern = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
+        if not re.match(email_pattern, email):
+            flash("Please enter a valid nominee email address.")
+            cur.close()
+            return redirect(url_for("nominees"))
+
+        # Validate relation
+        if not relation:
+            flash("Relationship cannot be empty.")
+            cur.close()
+            return redirect(url_for("nominees"))
+
+        if len(relation) > 100:
+            flash("Relationship is too long.")
+            cur.close()
+            return redirect(url_for("nominees"))
+
+        # Check for duplicate nominee email for this user
+        cur.execute(
+            "SELECT id FROM nominees WHERE user_id=%s AND email=%s",
+            (session["user_id"], email)
+        )
+
+        existing_nominee = cur.fetchone()
+
+        if existing_nominee:
+            flash("This nominee has already been added.")
+            cur.close()
+            return redirect(url_for("nominees"))
+
+        # Insert nominee
+        cur.execute(
+            """
+            INSERT INTO nominees (user_id, name, email, relation)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (session["user_id"], name, email, relation)
+        )
+
         mysql.connection.commit()
-        flash("Nominee added")
-    cur.execute("SELECT * FROM nominees WHERE user_id=%s", (session["user_id"],))
+        flash("Nominee added successfully.")
+
+    cur.execute(
+        "SELECT * FROM nominees WHERE user_id=%s ORDER BY created_at DESC",
+        (session["user_id"],)
+    )
+
     data = cur.fetchall()
     cur.close()
+
     return render_template("nominees.html", data=data)
+
+@app.route("/delete-nominee/<int:nominee_id>", methods=["POST"])
+def delete_nominee(nominee_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    cur = mysql.connection.cursor()
+
+    # Make sure this nominee belongs to the logged-in user
+    cur.execute(
+        "SELECT id FROM nominees WHERE id=%s AND user_id=%s",
+        (nominee_id, session["user_id"])
+    )
+    nominee = cur.fetchone()
+
+    if not nominee:
+        cur.close()
+        flash("Nominee not found.")
+        return redirect(url_for("nominees"))
+
+    cur.execute(
+        "DELETE FROM nominees WHERE id=%s AND user_id=%s",
+        (nominee_id, session["user_id"])
+    )
+
+    mysql.connection.commit()
+    cur.close()
+
+    flash("Nominee deleted successfully.")
+    return redirect(url_for("nominees"))
 
 @app.route("/activity")
 def activity():
