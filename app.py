@@ -380,6 +380,97 @@ def delete_nominee(nominee_id):
     flash("Nominee deleted successfully.")
     return redirect(url_for("nominees"))
 
+@app.route("/edit-nominee/<int:nominee_id>", methods=["GET", "POST"])
+def edit_nominee(nominee_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    cur = mysql.connection.cursor()
+
+    # Make sure this nominee belongs to the logged-in user
+    cur.execute(
+        "SELECT * FROM nominees WHERE id=%s AND user_id=%s",
+        (nominee_id, session["user_id"])
+    )
+
+    nominee = cur.fetchone()
+
+    if not nominee:
+        cur.close()
+        flash("Nominee not found.")
+        return redirect(url_for("nominees"))
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        relation = request.form.get("relation", "").strip()
+
+        # Validate name
+        if not name:
+            flash("Nominee name cannot be empty.")
+            cur.close()
+            return redirect(url_for("edit_nominee", nominee_id=nominee_id))
+
+        if len(name) > 100:
+            flash("Nominee name is too long.")
+            cur.close()
+            return redirect(url_for("edit_nominee", nominee_id=nominee_id))
+
+        # Validate email
+        email_pattern = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
+        if not re.match(email_pattern, email):
+            flash("Please enter a valid nominee email address.")
+            cur.close()
+            return redirect(url_for("edit_nominee", nominee_id=nominee_id))
+
+        # Validate relation
+        if not relation:
+            flash("Relationship cannot be empty.")
+            cur.close()
+            return redirect(url_for("edit_nominee", nominee_id=nominee_id))
+
+        if len(relation) > 100:
+            flash("Relationship is too long.")
+            cur.close()
+            return redirect(url_for("edit_nominee", nominee_id=nominee_id))
+
+        # Check whether another nominee of the same user already uses this email
+        cur.execute(
+            """
+            SELECT id FROM nominees
+            WHERE user_id=%s AND email=%s AND id!=%s
+            """,
+            (session["user_id"], email, nominee_id)
+        )
+
+        existing_nominee = cur.fetchone()
+
+        if existing_nominee:
+            flash("Another nominee with this email already exists.")
+            cur.close()
+            return redirect(url_for("edit_nominee", nominee_id=nominee_id))
+
+        # Update nominee
+        cur.execute(
+            """
+            UPDATE nominees
+            SET name=%s, email=%s, relation=%s
+            WHERE id=%s AND user_id=%s
+            """,
+            (name, email, relation, nominee_id, session["user_id"])
+        )
+
+        mysql.connection.commit()
+        cur.close()
+
+        flash("Nominee updated successfully.")
+        return redirect(url_for("nominees"))
+
+    cur.close()
+
+    return render_template("edit_nominee.html", nominee=nominee)
+
 @app.route("/activity")
 def activity():
     if "user_id" not in session:
