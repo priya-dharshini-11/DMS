@@ -212,9 +212,10 @@ def vault():
             file.save(file_path)
 
             cur.execute("""
-                INSERT INTO vault_data (user_id, title, item_type, file_name, file_path, file_type)
-                VALUES (%s, %s, 'file', %s, %s, %s)
-            """, (session["user_id"], title, unique_filename, file_path, file.mimetype))
+            INSERT INTO vault_data
+            (user_id, title, item_type, file_name, original_file_name, file_path, file_type)
+            VALUES (%s, %s, 'file', %s, %s, %s, %s)
+            """, (session["user_id"],title,unique_filename,original_filename,file_path,file.mimetype))
             mysql.connection.commit()
             flash("File vault item added")
 

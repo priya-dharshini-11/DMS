@@ -18,6 +18,7 @@ CREATE TABLE vault_data (
     item_type VARCHAR(20) NOT NULL DEFAULT 'text',
     content TEXT NULL,
     file_name VARCHAR(255) NULL,
+    original_file_name VARCHAR(255) NULL,
     file_path VARCHAR(500) NULL,
     file_type VARCHAR(100) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
