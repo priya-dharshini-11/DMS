@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from config import Config
 import os
+import uuid
 # from flask_bootstrap import Bootstrap
 from datetime import datetime, timedelta
 
@@ -42,6 +43,20 @@ def allowed_file(filename):
 
 @app.route("/uploads/<filename>")
 def uploaded_file(filename):
+    if "user_id" not in session:
+        return redirect(url_for("log"))
+
+    cur = mysql.connection.cursor()
+    cur.execute(
+        "SELECT file_name FROM vault_data WHERE file_name=%s AND user_id=%s",
+        (filename, session["user_id"])
+    )
+    item = cur.fetchone()
+    cur.close()
+
+    if not item:
+        return "Access denied", 403
+
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
 
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)
@@ -190,14 +205,16 @@ def vault():
                 return redirect(url_for("vault"))
 
             os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
-            filename = secure_filename(file.filename)
-            file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+            original_filename = secure_filename(file.filename)
+            unique_filename = f"{uuid.uuid4().hex}_{original_filename}"
+
+            file_path = os.path.join(app.config["UPLOAD_FOLDER"], unique_filename)
             file.save(file_path)
 
             cur.execute("""
                 INSERT INTO vault_data (user_id, title, item_type, file_name, file_path, file_type)
                 VALUES (%s, %s, 'file', %s, %s, %s)
-            """, (session["user_id"], title, filename, file_path, file.mimetype))
+            """, (session["user_id"], title, unique_filename, file_path, file.mimetype))
             mysql.connection.commit()
             flash("File vault item added")
 
