@@ -72,14 +72,188 @@ def send_email(to, subject, body):
     msg = Message(subject, recipients=[to], body=body)
     mail.send(msg)
 
-def update_activity(user_id):
+def reset_dms_cycle(user_id, event_type):
+    """
+    Reset the user's DMS cycle after a valid activity event.
+
+    Valid event types for now:
+    - LOGIN
+    - ACTIVITY_VERIFIED
+    """
+
+    if event_type not in ("LOGIN", "ACTIVITY_VERIFIED"):
+        raise ValueError("Invalid DMS activity event type")
+
+    now = datetime.now()
+    next_checkin = now + timedelta(days=30)
+
     cur = mysql.connection.cursor()
-    cur.execute("SELECT id FROM activity_logs WHERE user_id=%s", (user_id,))
-    row = cur.fetchone()
-    if row:
-        cur.execute("UPDATE activity_logs SET last_active_at=NOW() WHERE user_id=%s", (user_id,))
+
+    # Get the user's current DMS state
+    cur.execute("""
+        SELECT dms_state
+        FROM activity_logs
+        WHERE user_id=%s
+    """, (user_id,))
+
+    activity = cur.fetchone()
+
+    if activity:
+        # User has returned/verified activity.
+        # Reset the DMS cycle completely.
+        cur.execute("""
+            UPDATE activity_logs
+            SET
+                last_active_at=%s,
+                dms_state='ACTIVE',
+                warning_started_at=NULL,
+                grace_started_at=NULL,
+                release_deadline=NULL,
+                released_at=NULL,
+                next_checkin_at=%s
+            WHERE user_id=%s
+        """, (now, next_checkin, user_id))
+
     else:
-        cur.execute("INSERT INTO activity_logs (user_id, last_active_at) VALUES (%s, NOW())", (user_id,))
+        # First activity record for this user.
+        cur.execute("""
+            INSERT INTO activity_logs
+            (
+                user_id,
+                last_active_at,
+                dms_state,
+                next_checkin_at
+            )
+            VALUES (%s, %s, 'ACTIVE', %s)
+        """, (user_id, now, next_checkin))
+
+    # Add security-relevant history entry.
+    description = (
+        "User login"
+        if event_type == "LOGIN"
+        else "User verified activity"
+    )
+
+    cur.execute("""
+        INSERT INTO activity_history
+        (user_id, event_type, description)
+        VALUES (%s, %s, %s)
+    """, (user_id, event_type, description))
+
+    mysql.connection.commit()
+    cur.close()
+
+def process_dms_cycles():
+    """
+    Process DMS state transitions.
+
+    ACTIVE
+        -> GRACE
+        -> FINAL_WARNING
+        -> RELEASE_READY
+
+    This function only changes DMS state.
+    It does NOT send emails or release vault items yet.
+    """
+
+    now = datetime.now()
+
+    cur = mysql.connection.cursor()
+
+    cur.execute("""
+        SELECT
+            user_id,
+            dms_state,
+            next_checkin_at,
+            grace_started_at,
+            release_deadline
+        FROM activity_logs
+    """)
+
+    activities = cur.fetchall()
+
+    for activity in activities:
+
+        user_id = activity["user_id"]
+        state = activity["dms_state"]
+        next_checkin = activity["next_checkin_at"]
+        grace_started = activity["grace_started_at"]
+        release_deadline = activity["release_deadline"]
+
+        # -------------------------------------------------
+        # ACTIVE → GRACE
+        # -------------------------------------------------
+        if state == "ACTIVE":
+
+            if next_checkin and now >= next_checkin:
+
+                cur.execute("""
+                    UPDATE activity_logs
+                    SET
+                        dms_state='GRACE',
+                        grace_started_at=%s
+                    WHERE user_id=%s
+                      AND dms_state='ACTIVE'
+                      AND next_checkin_at <= %s
+                """, (now, user_id, now))
+
+                cur.execute("""
+                    INSERT INTO activity_history
+                    (user_id, event_type, description)
+                    VALUES (%s, 'GRACE_STARTED', 'DMS grace period started')
+                """, (user_id,))
+
+        # -------------------------------------------------
+        # GRACE → FINAL_WARNING
+        # -------------------------------------------------
+        elif state == "GRACE":
+
+            if grace_started:
+                final_warning_time = grace_started + timedelta(days=90)
+
+                if now >= final_warning_time:
+
+                    release_deadline = now + timedelta(days=7)
+
+                    cur.execute("""
+                        UPDATE activity_logs
+                        SET
+                            dms_state='FINAL_WARNING',
+                            warning_started_at=%s,
+                            release_deadline=%s
+                        WHERE user_id=%s
+                          AND dms_state='GRACE'
+                          AND grace_started_at <= %s
+                    """, (
+                        now,
+                        release_deadline,
+                        user_id,
+                        grace_started
+                    ))
+
+                    cur.execute("""
+                        INSERT INTO activity_history
+                        (user_id, event_type, description)
+                        VALUES (%s, 'FINAL_WARNING',
+                                'Final 7-day warning period started')
+                    """, (user_id,))
+
+        # -------------------------------------------------
+        # FINAL_WARNING → RELEASE_READY
+        # -------------------------------------------------
+        elif state == "FINAL_WARNING":
+
+            if release_deadline and now >= release_deadline:
+
+                cur.execute("""
+                    UPDATE activity_logs
+                    SET
+                        dms_state='RELEASE_READY'
+                    WHERE user_id=%s
+                      AND dms_state='FINAL_WARNING'
+                      AND release_deadline <= %s
+                """, (user_id, now))
+
     mysql.connection.commit()
     cur.close()
 
@@ -150,7 +324,7 @@ def login():
             session["user_id"] = user["id"]
             session["name"] = user["name"]
             session["role"] = "user" 
-            update_activity(user["id"])
+            reset_dms_cycle(user["id"], "LOGIN")
             return redirect(url_for("dashboard"))
 
         flash("Invalid user credentials")
@@ -187,7 +361,7 @@ def logout():
 def dashboard():
     if "user_id" not in session:
         return redirect(url_for("log"))
-    update_activity(session["user_id"])
+    
     return render_template("dashboard.html", name=session["name"])
 
 @app.route("/vault", methods=["GET", "POST"])
@@ -593,6 +767,4 @@ def about():
     return render_template("about.html")
 
 if __name__ == "__main__":
-    scheduler.add_job(func=check_inactive_users, trigger="interval", hours=24)
-    scheduler.start()
     app.run(debug=True)
