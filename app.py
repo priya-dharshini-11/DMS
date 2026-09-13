@@ -248,6 +248,61 @@ def view_vault():
 
     return render_template("view_vault.html", data=data)
 
+@app.route("/edit-vault/<int:item_id>", methods=["GET", "POST"])
+def edit_vault(item_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    cur = mysql.connection.cursor()
+
+    # Make sure this vault item belongs to the logged-in user
+    cur.execute(
+        """
+        SELECT *
+        FROM vault_data
+        WHERE id=%s AND user_id=%s
+        """,
+        (item_id, session["user_id"])
+    )
+    item = cur.fetchone()
+
+    if not item:
+        cur.close()
+        flash("Vault item not found.")
+        return redirect(url_for("view_vault"))
+
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        release_enabled = 1 if request.form.get("release_enabled") == "on" else 0
+
+        if not title:
+            flash("Title cannot be empty.")
+            cur.close()
+            return redirect(url_for("edit_vault", item_id=item_id))
+
+        if len(title) > 150:
+            flash("Title is too long.")
+            cur.close()
+            return redirect(url_for("edit_vault", item_id=item_id))
+
+        cur.execute(
+            """
+            UPDATE vault_data
+            SET title=%s, release_enabled=%s
+            WHERE id=%s AND user_id=%s
+            """,
+            (title, release_enabled, item_id, session["user_id"])
+        )
+
+        mysql.connection.commit()
+        cur.close()
+
+        flash("Vault item updated successfully.")
+        return redirect(url_for("view_vault"))
+
+    cur.close()
+    return render_template("edit_vault.html", item=item)
+
 @app.route("/delete-vault/<int:item_id>", methods=["POST"])
 def delete_vault(item_id):
     if "user_id" not in session:
