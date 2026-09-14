@@ -401,6 +401,39 @@ def login():
         flash("Invalid user credentials")
     return render_template("login.html")
 
+@app.route("/checkin", methods=["GET", "POST"])
+def checkin():
+
+    if request.method == "POST":
+
+        email = request.form["email"].strip().lower()
+        password = request.form["password"]
+
+        cur = mysql.connection.cursor()
+
+        cur.execute("""
+            SELECT *
+            FROM users
+            WHERE email=%s
+              AND role='user'
+        """, (email,))
+
+        user = cur.fetchone()
+        cur.close()
+
+        if user and check_password_hash(user["password_hash"], password):
+
+            reset_dms_cycle(user["id"], "ACTIVITY_VERIFIED")
+
+            return render_template(
+                "checkin_success.html",
+                name=user["name"]
+            )
+
+        flash("Invalid credentials")
+
+    return render_template("checkin.html")
+
 @app.route("/alogin", methods=["GET", "POST"])
 def alogin():
     if request.method == "POST":
