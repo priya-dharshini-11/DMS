@@ -787,11 +787,20 @@ def nominees():
 
         # Insert nominee
         cur.execute(
-            """
-            INSERT INTO nominees (user_id, name, email, relation)
-            VALUES (%s, %s, %s, %s)
-            """,
-            (session["user_id"], name, email, relation)
+        """
+        INSERT INTO nominees (user_id, name, email, relation)
+        VALUES (%s, %s, %s, %s)
+        """,
+        (session["user_id"], name, email, relation)
+        )
+
+        cur.execute(
+        """
+        INSERT INTO activity_history
+        (user_id, event_type, description)
+        VALUES (%s, 'NOMINEE_ADDED', 'Nominee added')
+        """,
+        (session["user_id"],)
         )
 
         mysql.connection.commit()
@@ -829,6 +838,15 @@ def delete_nominee(nominee_id):
     cur.execute(
         "DELETE FROM nominees WHERE id=%s AND user_id=%s",
         (nominee_id, session["user_id"])
+    )
+
+    cur.execute(
+        """
+        INSERT INTO activity_history
+        (user_id, event_type, description)
+        VALUES (%s, 'NOMINEE_DELETED', 'Nominee deleted')
+        """,
+        (session["user_id"],)
     )
 
     mysql.connection.commit()
@@ -908,9 +926,19 @@ def edit_nominee(nominee_id):
             cur.close()
             return redirect(url_for("edit_nominee", nominee_id=nominee_id))
 
+        # Check whether anything actually changed
+        if (
+            name == nominee["name"]
+            and email == nominee["email"]
+            and relation == nominee["relation"]
+        ):
+            cur.close()
+            flash("No changes were made.")
+            return redirect(url_for("nominees"))
+
         # Update nominee
         cur.execute(
-            """
+             """
             UPDATE nominees
             SET name=%s, email=%s, relation=%s
             WHERE id=%s AND user_id=%s
@@ -918,13 +946,19 @@ def edit_nominee(nominee_id):
             (name, email, relation, nominee_id, session["user_id"])
         )
 
+        cur.execute(
+            """
+            INSERT INTO activity_history
+            (user_id, event_type, description)
+            VALUES (%s, 'NOMINEE_UPDATED', 'Nominee updated')
+            """,
+            (session["user_id"],)
+        )
+
         mysql.connection.commit()
         cur.close()
-
         flash("Nominee updated successfully.")
         return redirect(url_for("nominees"))
-
-    cur.close()
 
     return render_template("edit_nominee.html", nominee=nominee)
 
