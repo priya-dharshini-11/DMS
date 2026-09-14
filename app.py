@@ -10,6 +10,8 @@ load_dotenv()
 from config import Config
 import os
 import re
+import secrets
+import hashlib
 import uuid
 # from flask_bootstrap import Bootstrap
 from datetime import datetime, timedelta
@@ -69,27 +71,23 @@ def make_session_permanent():
 
 
 def send_email(to, subject, body):
-    msg = Message(subject, recipients=[to], body=body)
+    msg = Message(subject, recipients=[to])
+    msg.html = body
     mail.send(msg)
 
-def reset_dms_cycle(user_id, event_type):
-    """
-    Reset the user's DMS cycle after a valid activity event.
-
-    Valid event types for now:
-    - LOGIN
-    - ACTIVITY_VERIFIED
-    """
-
+def reset_dms_cycle(user_id, event_type, cur=None):
     if event_type not in ("LOGIN", "ACTIVITY_VERIFIED"):
         raise ValueError("Invalid DMS activity event type")
 
     now = datetime.now()
     next_checkin = now + timedelta(days=30)
 
-    cur = mysql.connection.cursor()
+    own_cursor = False
 
-    # Get the user's current DMS state
+    if cur is None:
+        cur = mysql.connection.cursor()
+        own_cursor = True
+
     cur.execute("""
         SELECT dms_state
         FROM activity_logs
@@ -99,36 +97,26 @@ def reset_dms_cycle(user_id, event_type):
     activity = cur.fetchone()
 
     if activity:
-        # User has returned/verified activity.
-        # Reset the DMS cycle completely.
         cur.execute("""
             UPDATE activity_logs
             SET
-            last_active_at=%s,
-            dms_state='ACTIVE',
-            warning_started_at=NULL,
-            grace_started_at=NULL,
-            release_deadline=NULL,
-            released_at=NULL,
-            checkin_reminder_sent_at=NULL,
-            next_checkin_at=%s
+                last_active_at=%s,
+                dms_state='ACTIVE',
+                warning_started_at=NULL,
+                grace_started_at=NULL,
+                release_deadline=NULL,
+                released_at=NULL,
+                checkin_reminder_sent_at=NULL,
+                next_checkin_at=%s
             WHERE user_id=%s
-            """, (now, next_checkin, user_id))
-
+        """, (now, next_checkin, user_id))
     else:
-        # First activity record for this user.
         cur.execute("""
             INSERT INTO activity_logs
-            (
-                user_id,
-                last_active_at,
-                dms_state,
-                next_checkin_at
-            )
+            (user_id, last_active_at, dms_state, next_checkin_at)
             VALUES (%s, %s, 'ACTIVE', %s)
         """, (user_id, now, next_checkin))
 
-    # Add security-relevant history entry.
     description = (
         "User login"
         if event_type == "LOGIN"
@@ -141,8 +129,9 @@ def reset_dms_cycle(user_id, event_type):
         VALUES (%s, %s, %s)
     """, (user_id, event_type, description))
 
-    mysql.connection.commit()
-    cur.close()
+    if own_cursor:
+        mysql.connection.commit()
+        cur.close()
 
 def send_checkin_reminders():
     """
@@ -175,23 +164,70 @@ def send_checkin_reminders():
 
     for user in users:
 
+         # Generate a unique check-in token
+        token = secrets.token_urlsafe(32)
+
+        # Store only the SHA-256 hash in the database
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+        # Token remains valid for 24 hours
+        expires_at = now + timedelta(hours=24)
+
+        cur.execute("""
+            INSERT INTO dms_checkin_tokens
+            (user_id, token_hash, expires_at)
+            VALUES (%s, %s, %s)
+            """, (
+            user["id"],token_hash,expires_at))
+
         subject = "Dead Man's Switch - Check-in Required"
 
         body = f"""
-Hi {user["name"]},
+<html>
+<body>
 
-This is your scheduled Dead Man's Switch check-in reminder.
+<p>Hi {user["name"]},</p>
 
+<p>
+This is your scheduled <strong>Dead Man's Switch</strong>
+check-in reminder.
+</p>
+
+<p>
 Your DMS account is waiting for activity confirmation.
+</p>
 
+<p>
 Please confirm that you are active to keep your DMS cycle active.
+</p>
 
-The "I'm Active" confirmation link will be added in the next step.
+<p>
+<a href="http://127.0.0.1:5000/checkin/{token}"
+   style="
+       display:inline-block;
+       padding:12px 24px;
+       background-color:#0d6efd;
+       color:white;
+       text-decoration:none;
+       border-radius:6px;
+       font-weight:bold;
+   ">
+   I'M ACTIVE
+</a>
+</p>
 
-If you do not confirm your activity, your account may eventually enter the DMS grace and release process.
+<p>
+If you do not confirm your activity, your account may eventually
+enter the DMS grace and release process.
+</p>
 
-Regards,
-Dead Man's Switch
+<p>
+Regards,<br>
+<strong>Dead Man's Switch</strong>
+</p>
+
+</body>
+</html>
 """
 
         send_email(user["email"], subject, body)
@@ -401,15 +437,44 @@ def login():
         flash("Invalid user credentials")
     return render_template("login.html")
 
-@app.route("/checkin", methods=["GET", "POST"])
-def checkin():
+@app.route("/checkin/<token>", methods=["GET", "POST"])
+def checkin(token):
+
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    now = datetime.now()
+
+    cur = mysql.connection.cursor()
+
+    cur.execute("""
+        SELECT *
+        FROM dms_checkin_tokens
+        WHERE token_hash=%s
+    """, (token_hash,))
+
+    checkin_token = cur.fetchone()
+
+    if not checkin_token:
+        cur.close()
+        return render_template(
+            "checkin_expired.html"
+        )
+
+    if checkin_token["used_at"] is not None:
+        cur.close()
+        return render_template(
+            "checkin_expired.html"
+        )
+
+    if now >= checkin_token["expires_at"]:
+        cur.close()
+        return render_template(
+            "checkin_expired.html"
+        )
 
     if request.method == "POST":
 
         email = request.form["email"].strip().lower()
         password = request.form["password"]
-
-        cur = mysql.connection.cursor()
 
         cur.execute("""
             SELECT *
@@ -419,20 +484,50 @@ def checkin():
         """, (email,))
 
         user = cur.fetchone()
-        cur.close()
 
-        if user and check_password_hash(user["password_hash"], password):
+        if user and user["id"] == checkin_token["user_id"]:
 
-            reset_dms_cycle(user["id"], "ACTIVITY_VERIFIED")
+            if check_password_hash(
+                user["password_hash"],
+                password
+            ):
 
-            return render_template(
-                "checkin_success.html",
-                name=user["name"]
-            )
+                try:
+                    cur.execute("""
+                    UPDATE dms_checkin_tokens
+                    SET used_at=%s
+                    WHERE id=%s
+                    AND used_at IS NULL
+                    """, (
+                    now,
+                    checkin_token["id"]
+                    ))
 
-        flash("Invalid credentials")
+                    if cur.rowcount != 1:
+                        mysql.connection.rollback()
+                        cur.close()
+                        return render_template("checkin_expired.html")
 
-    return render_template("checkin.html")
+                    reset_dms_cycle(
+                    user["id"],
+                    "ACTIVITY_VERIFIED",
+                    cur=cur
+                    )
+
+                    mysql.connection.commit()
+                    cur.close()
+
+                    return render_template(
+                    "checkin_success.html",
+                    name=user["name"]
+                )
+
+                except Exception:
+                    mysql.connection.rollback()
+                    cur.close()
+
+                    flash("Unable to verify activity. Please try again.")
+                    return render_template("checkin.html")
 
 @app.route("/alogin", methods=["GET", "POST"])
 def alogin():
