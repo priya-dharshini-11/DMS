@@ -104,15 +104,16 @@ def reset_dms_cycle(user_id, event_type):
         cur.execute("""
             UPDATE activity_logs
             SET
-                last_active_at=%s,
-                dms_state='ACTIVE',
-                warning_started_at=NULL,
-                grace_started_at=NULL,
-                release_deadline=NULL,
-                released_at=NULL,
-                next_checkin_at=%s
+            last_active_at=%s,
+            dms_state='ACTIVE',
+            warning_started_at=NULL,
+            grace_started_at=NULL,
+            release_deadline=NULL,
+            released_at=NULL,
+            checkin_reminder_sent_at=NULL,
+            next_checkin_at=%s
             WHERE user_id=%s
-        """, (now, next_checkin, user_id))
+            """, (now, next_checkin, user_id))
 
     else:
         # First activity record for this user.
@@ -139,6 +140,76 @@ def reset_dms_cycle(user_id, event_type):
         (user_id, event_type, description)
         VALUES (%s, %s, %s)
     """, (user_id, event_type, description))
+
+    mysql.connection.commit()
+    cur.close()
+
+def send_checkin_reminders():
+    """
+    Send the scheduled DMS check-in reminder to users
+    whose check-in date has arrived.
+
+    A reminder is sent only once for each DMS cycle.
+    """
+
+    now = datetime.now()
+
+    cur = mysql.connection.cursor()
+
+    cur.execute("""
+        SELECT
+            u.id,
+            u.name,
+            u.email,
+            a.next_checkin_at,
+            a.checkin_reminder_sent_at
+        FROM users u
+        JOIN activity_logs a ON u.id = a.user_id
+        WHERE u.role = 'user'
+          AND a.dms_state = 'ACTIVE'
+          AND a.next_checkin_at <= %s
+          AND a.checkin_reminder_sent_at IS NULL
+    """, (now,))
+
+    users = cur.fetchall()
+
+    for user in users:
+
+        subject = "Dead Man's Switch - Check-in Required"
+
+        body = f"""
+Hi {user["name"]},
+
+This is your scheduled Dead Man's Switch check-in reminder.
+
+Your DMS account is waiting for activity confirmation.
+
+Please confirm that you are active to keep your DMS cycle active.
+
+The "I'm Active" confirmation link will be added in the next step.
+
+If you do not confirm your activity, your account may eventually enter the DMS grace and release process.
+
+Regards,
+Dead Man's Switch
+"""
+
+        send_email(user["email"], subject, body)
+
+        cur.execute("""
+            UPDATE activity_logs
+            SET checkin_reminder_sent_at=%s
+            WHERE user_id=%s
+              AND checkin_reminder_sent_at IS NULL
+        """, (now, user["id"]))
+
+        cur.execute("""
+            INSERT INTO activity_history
+            (user_id, event_type, description)
+            VALUES
+            (%s, 'REMINDER_SENT',
+             'Scheduled DMS check-in reminder sent')
+        """, (user["id"],))
 
     mysql.connection.commit()
     cur.close()
