@@ -591,6 +591,13 @@ def vault():
             (user_id, title, item_type, file_name, original_file_name, file_path, file_type, release_enabled)
             VALUES (%s, %s, 'file', %s, %s, %s, %s, %s)
             """, (session["user_id"],title,unique_filename,original_filename,file_path,file.mimetype,release_enabled))
+
+            cur.execute("""
+    INSERT INTO activity_history
+    (user_id, event_type, description)
+    VALUES (%s, 'VAULT_ITEM_ADDED', 'Vault item added')
+""", (session["user_id"],))
+
             mysql.connection.commit()
             flash("File vault item added")
 
@@ -600,6 +607,13 @@ def vault():
             (user_id, title, item_type, content, release_enabled)
             VALUES (%s, %s, 'text', %s, %s)
             """, (session["user_id"], title, content, release_enabled))
+
+            cur.execute("""
+            INSERT INTO activity_history
+            (user_id, event_type, description)
+            VALUES (%s, 'VAULT_ITEM_ADDED', 'Vault item added')
+            """, (session["user_id"],))
+
             mysql.connection.commit()
             flash("Text vault item added")
 
@@ -667,6 +681,12 @@ def edit_vault(item_id):
             (title, release_enabled, item_id, session["user_id"])
         )
 
+        cur.execute("""
+        INSERT INTO activity_history
+        (user_id, event_type, description)
+        VALUES (%s, 'VAULT_ITEM_UPDATED', 'Vault item updated')
+        """, (session["user_id"],))
+
         mysql.connection.commit()
         cur.close()
 
@@ -697,6 +717,13 @@ def delete_vault(item_id):
             os.remove(file_path)
 
     cur.execute("DELETE FROM vault_data WHERE id=%s AND user_id=%s", (item_id, session["user_id"]))
+
+    cur.execute("""
+    INSERT INTO activity_history
+    (user_id, event_type, description)
+    VALUES (%s, 'VAULT_ITEM_DELETED', 'Vault item deleted')
+    """, (session["user_id"],))
+
     mysql.connection.commit()
     cur.close()
 
