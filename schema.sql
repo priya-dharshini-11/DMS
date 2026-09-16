@@ -91,6 +91,23 @@ CREATE TABLE releases (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     release_reason VARCHAR(100) NOT NULL,
-    released_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+    started_at TIMESTAMP NULL,
+    completed_at TIMESTAMP NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE release_deliveries (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    release_id INT NOT NULL,
+    nominee_id INT NOT NULL,
+    vault_item_id INT NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+    sent_at TIMESTAMP NULL,
+    error_message VARCHAR(255) NULL,
+    FOREIGN KEY (release_id) REFERENCES releases(id) ON DELETE CASCADE,
+    FOREIGN KEY (nominee_id) REFERENCES nominees(id) ON DELETE CASCADE,
+    FOREIGN KEY (vault_item_id) REFERENCES vault_data(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_release_delivery
+        (release_id, nominee_id, vault_item_id)
 );
