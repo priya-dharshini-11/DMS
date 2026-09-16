@@ -364,6 +364,129 @@ def process_dms_cycles():
     mysql.connection.commit()
     cur.close()
 
+def process_release_ready_users():
+    """
+    Process users whose DMS state has reached RELEASE_READY.
+
+    This phase creates the release transaction and delivery records.
+    It does NOT send emails yet.
+    """
+
+    cur = mysql.connection.cursor()
+
+    try:
+        cur.execute("""
+            SELECT user_id
+            FROM activity_logs
+            WHERE dms_state='RELEASE_READY'
+            FOR UPDATE
+        """)
+
+        ready_users = cur.fetchall()
+
+        for activity in ready_users:
+
+            user_id = activity["user_id"]
+
+            # Re-check the state while holding the transaction lock.
+            cur.execute("""
+                SELECT dms_state
+                FROM activity_logs
+                WHERE user_id=%s
+                FOR UPDATE
+            """, (user_id,))
+
+            current_state = cur.fetchone()
+
+            if not current_state:
+                continue
+
+            if current_state["dms_state"] != "RELEASE_READY":
+                continue
+
+            # Prevent duplicate release records.
+            cur.execute("""
+                SELECT id
+                FROM releases
+                WHERE user_id=%s
+                  AND status IN ('PENDING', 'PROCESSING', 'COMPLETED')
+                LIMIT 1
+            """, (user_id,))
+
+            existing_release = cur.fetchone()
+
+            if existing_release:
+                continue
+
+            # Get nominees belonging to this user.
+            cur.execute("""
+                SELECT id
+                FROM nominees
+                WHERE user_id=%s
+            """, (user_id,))
+
+            nominees = cur.fetchall()
+
+            # Get only vault items explicitly selected for release.
+            cur.execute("""
+                SELECT id
+                FROM vault_data
+                WHERE user_id=%s
+                  AND release_enabled=1
+            """, (user_id,))
+
+            vault_items = cur.fetchall()
+
+            # Create release record even when there is
+            # nothing to deliver. This preserves the event.
+            cur.execute("""
+                INSERT INTO releases
+                (user_id, release_reason, status, started_at)
+                VALUES (%s, %s, 'PROCESSING', %s)
+            """, (
+                user_id,
+                "DMS inactivity release",
+                datetime.now()
+            ))
+
+            release_id = cur.lastrowid
+
+            # Create one delivery record for every
+            # nominee × selected vault item combination.
+            for nominee in nominees:
+                for item in vault_items:
+
+                    cur.execute("""
+                        INSERT INTO release_deliveries
+                        (release_id, nominee_id, vault_item_id, status)
+                        VALUES (%s, %s, %s, 'PENDING')
+                    """, (
+                        release_id,
+                        nominee["id"],
+                        item["id"]
+                    ))
+
+            # Record the release event.
+            cur.execute("""
+                INSERT INTO activity_history
+                (user_id, event_type, description)
+                VALUES (
+                    %s,
+                    'RELEASE_TRIGGERED',
+                    'DMS release transaction created'
+                )
+            """, (user_id,))
+
+            
+        mysql.connection.commit()
+
+    except Exception:
+        mysql.connection.rollback()
+        raise
+
+    finally:
+        cur.close()
+
 def check_inactive_users():
     cur = mysql.connection.cursor()
     cur.execute("""
