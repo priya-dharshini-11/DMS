@@ -88,6 +88,53 @@ def reset_dms_cycle(user_id, event_type, cur=None):
         cur = mysql.connection.cursor()
         own_cursor = True
 
+    # Cancel any unfinished release when the user becomes active again.
+    cur.execute("""
+        SELECT id
+        FROM releases
+        WHERE user_id=%s
+          AND status IN ('PENDING', 'PROCESSING')
+        FOR UPDATE
+    """, (user_id,))
+
+    pending_releases = cur.fetchall()
+
+    for release in pending_releases:
+
+        release_id = release["id"]
+
+        cur.execute("""
+            UPDATE release_deliveries
+            SET status='CANCELLED',
+                error_message=%s
+            WHERE release_id=%s
+              AND status IN ('PENDING', 'FAILED')
+        """, (
+            "Release cancelled because user became active",
+            release_id
+        ))
+
+        cur.execute("""
+            UPDATE releases
+            SET status='CANCELLED',
+                completed_at=%s
+            WHERE id=%s
+              AND status IN ('PENDING', 'PROCESSING')
+        """, (
+            now,
+            release_id
+        ))
+
+        cur.execute("""
+            INSERT INTO activity_history
+            (user_id, event_type, description)
+            VALUES (
+                %s,
+                'RELEASE_CANCELLED',
+                'Pending release cancelled because user became active'
+            )
+        """, (user_id,))
+
     cur.execute("""
         SELECT dms_state
         FROM activity_logs
@@ -479,6 +526,319 @@ def process_release_ready_users():
 
             
         mysql.connection.commit()
+
+    except Exception:
+        mysql.connection.rollback()
+        raise
+
+    finally:
+        cur.close()
+
+def deliver_pending_releases():
+    """
+    Deliver pending DMS releases to nominees.
+
+    Successful deliveries are marked SENT.
+    Failed deliveries remain tracked as FAILED.
+    The account becomes RELEASED only when all deliveries
+    for the release are successfully completed.
+    """
+
+    cur = mysql.connection.cursor()
+
+    try:
+        cur.execute("""
+            SELECT
+                r.id AS release_id,
+                r.user_id
+            FROM releases r
+            WHERE r.status='PROCESSING'
+            ORDER BY r.id
+        """)
+
+        releases = cur.fetchall()
+
+        for release in releases:
+
+            release_id = release["release_id"]
+            user_id = release["user_id"]
+
+            # Get owner details.
+            cur.execute("""
+                SELECT name, email
+                FROM users
+                WHERE id=%s
+            """, (user_id,))
+
+            owner = cur.fetchone()
+
+            if not owner:
+                continue
+
+            # Get nominees.
+            cur.execute("""
+                SELECT id, name, email
+                FROM nominees
+                WHERE user_id=%s
+            """, (user_id,))
+
+            nominees = cur.fetchall()
+
+            # Get selected vault items.
+            cur.execute("""
+                SELECT *
+                FROM vault_data
+                WHERE user_id=%s
+                  AND release_enabled=1
+            """, (user_id,))
+
+            vault_items = cur.fetchall()
+
+            # No nominees.
+            if not nominees:
+                cur.execute("""
+                    UPDATE releases
+                    SET status='FAILED',
+                        completed_at=%s
+                    WHERE id=%s
+                """, (datetime.now(), release_id))
+
+                cur.execute("""
+                    INSERT INTO activity_history
+                    (user_id, event_type, description)
+                    VALUES (
+                        %s,
+                        'RELEASE_FAILED',
+                        'Release failed because no nominees were available'
+                    )
+                """, (user_id,))
+
+                continue
+
+            # No selected vault items.
+            if not vault_items:
+                cur.execute("""
+                    UPDATE releases
+                    SET status='COMPLETED',
+                        completed_at=%s
+                    WHERE id=%s
+                """, (datetime.now(), release_id))
+
+                cur.execute("""
+                    UPDATE activity_logs
+                    SET dms_state='RELEASED',
+                        released_at=%s
+                    WHERE user_id=%s
+                """, (datetime.now(), user_id))
+
+                cur.execute("""
+                    INSERT INTO activity_history
+                    (user_id, event_type, description)
+                    VALUES (
+                        %s,
+                        'RELEASE_CONFIRMED',
+                        'Release completed with no selected vault items'
+                    )
+                """, (user_id,))
+
+                continue
+
+            # Send one email per nominee.
+            for nominee in nominees:
+
+                nominee_failed = False
+
+                body_parts = [
+                    f"<h2>Dead Man's Switch Release</h2>",
+                    f"<p>Hello {nominee['name']},</p>",
+                    f"<p>This message contains digital items released by "
+                    f"{owner['name']} through the Dead Man's Switch system.</p>"
+                ]
+
+                attachments = []
+
+                for item in vault_items:
+
+                    if item["item_type"] == "text":
+
+                        body_parts.append(
+                            f"<h3>{item['title']}</h3>"
+                        )
+
+                        body_parts.append(
+                            f"<p>{item['content'] or ''}</p>"
+                        )
+
+                    else:
+
+                        file_path = item["file_path"]
+
+                        if not file_path or not os.path.exists(file_path):
+                            nominee_failed = True
+
+                            cur.execute("""
+                                UPDATE release_deliveries
+                                SET status='FAILED',
+                                    error_message=%s
+                                WHERE release_id=%s
+                                  AND nominee_id=%s
+                                  AND vault_item_id=%s
+                                  AND status='PENDING'
+                            """, (
+                                "Release file not found",
+                                release_id,
+                                nominee["id"],
+                                item["id"]
+                            ))
+
+                            continue
+
+                        attachments.append((
+                            item["original_file_name"]
+                            or item["file_name"],
+                            item["file_type"]
+                            or "application/octet-stream",
+                            file_path
+                        ))
+
+                if nominee_failed:
+                    continue
+
+                try:
+
+                    msg = Message(
+                        "Dead Man's Switch - Released Items",
+                        recipients=[nominee["email"]]
+                    )
+
+                    msg.html = "".join(body_parts)
+
+                    for filename, mimetype, file_path in attachments:
+
+                        with open(file_path, "rb") as file:
+                            msg.attach(
+                                filename,
+                                mimetype,
+                                file.read()
+                            )
+
+                    mail.send(msg)
+
+                    for item in vault_items:
+
+                        cur.execute("""
+                            UPDATE release_deliveries
+                            SET status='SENT',
+                                sent_at=%s,
+                                error_message=NULL
+                            WHERE release_id=%s
+                              AND nominee_id=%s
+                              AND vault_item_id=%s
+                              AND status='PENDING'
+                        """, (
+                            datetime.now(),
+                            release_id,
+                            nominee["id"],
+                            item["id"]
+                        ))
+
+                    cur.execute("""
+                        INSERT INTO activity_history
+                        (user_id, event_type, description)
+                        VALUES (
+                            %s,
+                            'NOMINEE_NOTIFIED',
+                            'Release notification sent to nominee'
+                        )
+                    """, (user_id,))
+
+                except Exception as error:
+
+                    nominee_failed = True
+
+                    for item in vault_items:
+
+                        cur.execute("""
+                            UPDATE release_deliveries
+                            SET status='FAILED',
+                                error_message=%s
+                            WHERE release_id=%s
+                              AND nominee_id=%s
+                              AND vault_item_id=%s
+                              AND status='PENDING'
+                        """, (
+                            str(error)[:255],
+                            release_id,
+                            nominee["id"],
+                            item["id"]
+                        ))
+
+            # Determine final release state.
+            cur.execute("""
+                SELECT
+                    COUNT(*) AS total,
+                    SUM(status='SENT') AS sent_count,
+                    SUM(status='FAILED') AS failed_count,
+                    SUM(status='PENDING') AS pending_count
+                FROM release_deliveries
+                WHERE release_id=%s
+            """, (release_id,))
+
+            delivery_status = cur.fetchone()
+
+            total = delivery_status["total"] or 0
+            sent_count = delivery_status["sent_count"] or 0
+            failed_count = delivery_status["failed_count"] or 0
+            pending_count = delivery_status["pending_count"] or 0
+
+            if total > 0 and sent_count == total:
+
+                cur.execute("""
+                    UPDATE releases
+                    SET status='COMPLETED',
+                        completed_at=%s
+                    WHERE id=%s
+                      AND status='PROCESSING'
+                """, (
+                    datetime.now(),
+                    release_id
+                ))
+
+                cur.execute("""
+                    UPDATE activity_logs
+                    SET dms_state='RELEASED',
+                        released_at=%s
+                    WHERE user_id=%s
+                      AND dms_state='RELEASE_READY'
+                """, (
+                    datetime.now(),
+                    user_id
+                ))
+
+                cur.execute("""
+                    INSERT INTO activity_history
+                    (user_id, event_type, description)
+                    VALUES (
+                        %s,
+                        'RELEASE_CONFIRMED',
+                        'All selected vault items were released successfully'
+                    )
+                """, (user_id,))
+
+            elif failed_count > 0 and pending_count == 0:
+
+                cur.execute("""
+                    UPDATE releases
+                    SET status='PARTIAL',
+                        completed_at=%s
+                    WHERE id=%s
+                      AND status='PROCESSING'
+                """, (
+                    datetime.now(),
+                    release_id
+                ))
+
+            mysql.connection.commit()
 
     except Exception:
         mysql.connection.rollback()
