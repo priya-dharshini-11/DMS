@@ -68,12 +68,84 @@ app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)
 def make_session_permanent():
     session.permanent = True
 
+def is_valid_nominee_email(email):
+    """
+    Validate nominee email structure before saving it.
+    """
+    if not email:
+        return False
 
+    if len(email) > 254:
+        return False
 
-def send_email(to, subject, body):
-    msg = Message(subject, recipients=[to])
-    msg.html = body
-    mail.send(msg)
+    if email.count("@") != 1:
+        return False
+
+    local, domain = email.rsplit("@", 1)
+
+    if not local or len(local) > 64:
+        return False
+
+    if not domain or len(domain) > 253:
+        return False
+
+    if not re.match(r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+$", local):
+        return False
+
+    if local.startswith(".") or local.endswith(".") or ".." in local:
+        return False
+
+    domain_pattern = (
+        r"^(?=.{1,253}$)"
+        r"(?:[A-Za-z0-9]"
+        r"(?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+"
+        r"[A-Za-z]{2,63}$"
+    )
+
+    if not re.match(domain_pattern, domain):
+        return False
+
+    return True
+
+def send_email(to, subject, body, attachments=None):
+    import smtplib
+    from email.message import EmailMessage
+
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = app.config["MAIL_USERNAME"]
+    msg["To"] = to
+
+    msg.set_content("This email contains HTML content.")
+    msg.add_alternative(body, subtype="html")
+
+    if attachments:
+        for filename, mimetype, file_path in attachments:
+            with open(file_path, "rb") as file:
+                file_data = file.read()
+
+            maintype, subtype = mimetype.split("/", 1)
+
+            msg.add_attachment(
+                file_data,
+                maintype=maintype,
+                subtype=subtype,
+                filename=filename
+            )
+
+    with smtplib.SMTP(
+        app.config["MAIL_SERVER"],
+        app.config["MAIL_PORT"],
+        timeout=10
+    ) as smtp:
+        smtp.ehlo()
+        smtp.starttls()
+        smtp.ehlo()
+        smtp.login(
+            app.config["MAIL_USERNAME"],
+            app.config["MAIL_PASSWORD"]
+        )
+        smtp.send_message(msg)
 
 def reset_dms_cycle(user_id, event_type, cur=None):
     if event_type not in ("LOGIN", "ACTIVITY_VERIFIED"):
@@ -706,23 +778,12 @@ def deliver_pending_releases():
 
                 try:
 
-                    msg = Message(
+                    send_email(
+                        nominee["email"],
                         "Dead Man's Switch - Released Items",
-                        recipients=[nominee["email"]]
+                        "".join(body_parts),
+                        attachments=attachments
                     )
-
-                    msg.html = "".join(body_parts)
-
-                    for filename, mimetype, file_path in attachments:
-
-                        with open(file_path, "rb") as file:
-                            msg.attach(
-                                filename,
-                                mimetype,
-                                file.read()
-                            )
-
-                    mail.send(msg)
 
                     for item in vault_items:
 
@@ -1237,9 +1298,8 @@ def nominees():
             return redirect(url_for("nominees"))
 
         # Validate email
-        email_pattern = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
-
-        if not re.match(email_pattern, email):
+        # Validate email
+        if not is_valid_nominee_email(email):
             flash("Please enter a valid nominee email address.")
             cur.close()
             return redirect(url_for("nominees"))
@@ -1375,9 +1435,8 @@ def edit_nominee(nominee_id):
             return redirect(url_for("edit_nominee", nominee_id=nominee_id))
 
         # Validate email
-        email_pattern = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
-
-        if not re.match(email_pattern, email):
+        # Validate email
+        if not is_valid_nominee_email(email):
             flash("Please enter a valid nominee email address.")
             cur.close()
             return redirect(url_for("edit_nominee", nominee_id=nominee_id))
