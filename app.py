@@ -277,6 +277,7 @@ def send_checkin_reminders():
           AND a.dms_state = 'ACTIVE'
           AND a.next_checkin_at <= %s
           AND a.checkin_reminder_sent_at IS NULL
+        FOR UPDATE
     """, (now,))
 
     users = cur.fetchall()
