@@ -742,6 +742,19 @@ def deliver_pending_releases():
 
                     continue
 
+                # Re-check release state before sending.
+                cur.execute("""
+                    SELECT status
+                    FROM releases
+                    WHERE id=%s
+                    FOR UPDATE
+                """, (release_id,))
+
+                release_state = cur.fetchone()
+
+                if not release_state or release_state["status"] != "PROCESSING":
+                    continue
+
                 try:
 
                     send_email(
