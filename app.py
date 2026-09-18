@@ -424,11 +424,12 @@ def process_dms_cycles():
                       AND next_checkin_at <= %s
                 """, (now, user_id, now))
 
-                cur.execute("""
-                    INSERT INTO activity_history
-                    (user_id, event_type, description)
-                    VALUES (%s, 'GRACE_STARTED', 'DMS grace period started')
-                """, (user_id,))
+                if cur.rowcount == 1:
+                    cur.execute("""
+                        INSERT INTO activity_history
+                        (user_id, event_type, description)
+                        VALUES (%s, 'GRACE_STARTED', 'DMS grace period started')
+                    """, (user_id,))
 
         # -------------------------------------------------
         # GRACE → FINAL_WARNING
@@ -458,12 +459,13 @@ def process_dms_cycles():
                         grace_started
                     ))
 
-                    cur.execute("""
-                        INSERT INTO activity_history
-                        (user_id, event_type, description)
-                        VALUES (%s, 'FINAL_WARNING',
-                                'Final 7-day warning period started')
-                    """, (user_id,))
+                    if cur.rowcount == 1:
+                        cur.execute("""
+                            INSERT INTO activity_history
+                            (user_id, event_type, description)
+                            VALUES (%s, 'FINAL_WARNING',
+                            'Final 7-day warning period started')
+                        """, (user_id,))
 
         # -------------------------------------------------
         # FINAL_WARNING → RELEASE_READY
@@ -480,6 +482,17 @@ def process_dms_cycles():
                       AND dms_state='FINAL_WARNING'
                       AND release_deadline <= %s
                 """, (user_id, now))
+
+                if cur.rowcount == 1:
+                    cur.execute("""
+                        INSERT INTO activity_history
+                        (user_id, event_type, description)
+                        VALUES (
+                        %s,
+                        'RELEASE_READY',
+                        'DMS release conditions satisfied'
+                        )
+                    """, (user_id,))
 
     mysql.connection.commit()
     cur.close()
@@ -843,15 +856,14 @@ def deliver_pending_releases():
                     user_id
                 ))
 
-                cur.execute("""
-                    INSERT INTO activity_history
-                    (user_id, event_type, description)
-                    VALUES (
-                        %s,
-                        'RELEASE_CONFIRMED',
+                if cur.rowcount == 1:
+                    cur.execute("""
+                        INSERT INTO activity_history
+                        (user_id, event_type, description)
+                        VALUES (%s,'RELEASE_CONFIRMED',
                         'All selected vault items were released successfully'
-                    )
-                """, (user_id,))
+                        )
+                    """, (user_id,))
 
             # Some deliveries still need retry.
             elif failed_count > 0 or pending_count > 0:
