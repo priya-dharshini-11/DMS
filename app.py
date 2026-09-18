@@ -165,7 +165,7 @@ def reset_dms_cycle(user_id, event_type, cur=None):
         SELECT id
         FROM releases
         WHERE user_id=%s
-          AND status IN ('PENDING', 'PROCESSING')
+          AND status IN ('PENDING', 'PROCESSING','PARTIAL')
         FOR UPDATE
     """, (user_id,))
 
@@ -529,7 +529,7 @@ def process_release_ready_users():
                 SELECT id
                 FROM releases
                 WHERE user_id=%s
-                  AND status IN ('PENDING', 'PROCESSING', 'COMPLETED')
+                  AND status IN ('PENDING', 'PROCESSING', 'COMPLETED','PARTIAL')
                 LIMIT 1
             """, (user_id,))
 
@@ -753,7 +753,7 @@ def deliver_pending_releases():
 
                 release_state = cur.fetchone()
 
-                if not release_state or release_state["status"] != "PROCESSING":
+                if not release_state or release_state["status"] not in ("PROCESSING", "PARTIAL"):
                     continue
 
                 try:
