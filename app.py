@@ -1841,6 +1841,145 @@ def admin_users():
         admin_name=session.get("admin_name")
     )
 
+@app.route("/admin-user/<int:user_id>")
+def admin_user_details(user_id):
+    if session.get("role") != "admin" or "admin_id" not in session:
+        return redirect(url_for("alogin"))
+
+    cur = mysql.connection.cursor()
+
+    # User account
+    cur.execute("""
+        SELECT
+            id,
+            name,
+            email,
+            is_verified,
+            created_at
+        FROM users
+        WHERE id = %s AND role = 'user'
+    """, (user_id,))
+
+    user = cur.fetchone()
+
+    if not user:
+        cur.close()
+        flash("User not found.")
+        return redirect(url_for("admin_users"))
+
+    # DMS status
+    cur.execute("""
+        SELECT
+            dms_state,
+            last_active_at,
+            next_checkin_at,
+            warning_started_at,
+            grace_started_at,
+            release_deadline,
+            released_at,
+            checkin_reminder_sent_at
+        FROM activity_logs
+        WHERE user_id = %s
+        ORDER BY id DESC
+        LIMIT 1
+    """, (user_id,))
+
+    dms = cur.fetchone()
+
+    # Vault summary
+    cur.execute("""
+        SELECT
+            COUNT(*) AS total_items,
+            SUM(CASE WHEN release_enabled = 1 THEN 1 ELSE 0 END)
+                AS release_enabled_items
+        FROM vault_data
+        WHERE user_id = %s
+    """, (user_id,))
+
+    vault_summary = cur.fetchone()
+
+    # Nominees
+    cur.execute("""
+        SELECT
+            id,
+            name,
+            email,
+            relation,
+            created_at
+        FROM nominees
+        WHERE user_id = %s
+        ORDER BY id
+    """, (user_id,))
+
+    nominees = cur.fetchall()
+
+    # Release history
+    cur.execute("""
+        SELECT
+            r.id AS release_id,
+            r.release_reason,
+            r.status,
+            r.started_at,
+            r.completed_at,
+            COUNT(rd.id) AS delivery_count,
+            SUM(
+                CASE WHEN rd.status = 'SENT'
+                THEN 1 ELSE 0 END
+            ) AS sent_count,
+            SUM(
+                CASE WHEN rd.status = 'FAILED'
+                THEN 1 ELSE 0 END
+            ) AS failed_count,
+            SUM(
+                CASE WHEN rd.status = 'PENDING'
+                THEN 1 ELSE 0 END
+            ) AS pending_count,
+            SUM(
+                CASE WHEN rd.status = 'CANCELLED'
+                THEN 1 ELSE 0 END
+            ) AS cancelled_count
+        FROM releases r
+        LEFT JOIN release_deliveries rd
+            ON r.id = rd.release_id
+        WHERE r.user_id = %s
+        GROUP BY
+            r.id,
+            r.release_reason,
+            r.status,
+            r.started_at,
+            r.completed_at
+        ORDER BY r.id DESC
+    """, (user_id,))
+
+    releases = cur.fetchall()
+
+    # Recent activity
+    cur.execute("""
+        SELECT
+            event_type,
+            event_time,
+            description
+        FROM activity_history
+        WHERE user_id = %s
+        ORDER BY event_time DESC
+        LIMIT 10
+    """, (user_id,))
+
+    activity = cur.fetchall()
+
+    cur.close()
+
+    return render_template(
+        "admin_user_details.html",
+        user=user,
+        dms=dms,
+        vault_summary=vault_summary,
+        nominees=nominees,
+        releases=releases,
+        activity=activity,
+        admin_name=session.get("admin_name")
+    )
+
 @app.route("/admin-monitoring")
 def admin_monitoring():
     if session.get("role") != "admin" or "admin_id" not in session:

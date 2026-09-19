@@ -38,6 +38,7 @@
             <th>Vault</th>
             <th>Nominees</th>
             <th>Joined</th>
+            <th>Details</th>
           </tr>
         </thead>
 
@@ -89,6 +90,13 @@
               <td>{{ user.nominee_count }}</td>
 
               <td>{{ user.created_at }}</td>
+
+              <td>
+                <a href="{{ url_for('admin_user_details', user_id=user.id) }}"
+                  class="btn btn-sm btn-outline-dark">
+                  View
+                </a>
+              </td>
             </tr>
 
             {% endfor %}
@@ -96,7 +104,7 @@
           {% else %}
 
             <tr>
-              <td colspan="9" class="text-center text-muted">
+              <td colspan="10" class="text-center text-muted">
                 No users available.
               </td>
             </tr>
