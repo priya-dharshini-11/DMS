@@ -1798,10 +1798,16 @@ def activity():
     cur.close()
     return render_template(r"activity.html", activity=data)
 
-@app.route("/admin-users")
-def admin_users():
+def require_admin():
     if session.get("role") != "admin" or "admin_id" not in session:
         return redirect(url_for("alogin"))
+    return None
+
+@app.route("/admin-users")
+def admin_users():
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
 
     cur = mysql.connection.cursor()
 
@@ -1841,10 +1847,271 @@ def admin_users():
         admin_name=session.get("admin_name")
     )
 
+@app.route("/admin-user/<int:user_id>/force-checkin", methods=["POST"])
+def admin_force_checkin(user_id):
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    cur = mysql.connection.cursor()
+
+    try:
+        # Only normal users can be affected by this action.
+        cur.execute("""
+            SELECT id, name
+            FROM users
+            WHERE id=%s AND role='user'
+        """, (user_id,))
+
+        user = cur.fetchone()
+
+        if not user:
+            cur.close()
+            flash("User not found.")
+            return redirect(url_for("admin_users"))
+
+        now = datetime.now()
+        next_checkin = now + timedelta(days=30)
+
+        # Lock unfinished releases before changing their state.
+        cur.execute("""
+            SELECT id
+            FROM releases
+            WHERE user_id=%s
+              AND status IN ('PENDING', 'PROCESSING', 'PARTIAL')
+            FOR UPDATE
+        """, (user_id,))
+
+        pending_releases = cur.fetchall()
+
+        for release in pending_releases:
+            release_id = release["id"]
+
+            # Anything not already delivered is cancelled.
+            cur.execute("""
+                UPDATE release_deliveries
+                SET status='CANCELLED',
+                    error_message=%s
+                WHERE release_id=%s
+                  AND status IN ('PENDING', 'FAILED')
+            """, (
+                "Release cancelled because admin forced a user check-in",
+                release_id
+            ))
+
+            cur.execute("""
+                UPDATE releases
+                SET status='CANCELLED',
+                    completed_at=%s
+                WHERE id=%s
+                  AND status IN ('PENDING', 'PROCESSING', 'PARTIAL')
+            """, (
+                now,
+                release_id
+            ))
+
+            cur.execute("""
+                INSERT INTO activity_history
+                (user_id, event_type, description)
+                VALUES (
+                    %s,
+                    'RELEASE_CANCELLED',
+                    'Release cancelled because admin forced a user check-in'
+                )
+            """, (user_id,))
+
+        # Reset the user's DMS cycle explicitly as an admin action.
+        cur.execute("""
+            SELECT id
+            FROM activity_logs
+            WHERE user_id=%s
+            ORDER BY id DESC
+            LIMIT 1
+            FOR UPDATE
+        """, (user_id,))
+
+        activity = cur.fetchone()
+
+        if activity:
+            cur.execute("""
+                UPDATE activity_logs
+                SET
+                    last_active_at=%s,
+                    dms_state='ACTIVE',
+                    warning_started_at=NULL,
+                    grace_started_at=NULL,
+                    release_deadline=NULL,
+                    released_at=NULL,
+                    next_checkin_at=%s,
+                    checkin_reminder_sent_at=NULL
+                WHERE id=%s
+            """, (
+                now,
+                next_checkin,
+                activity["id"]
+            ))
+        else:
+            cur.execute("""
+                INSERT INTO activity_logs
+                (
+                    user_id,
+                    last_active_at,
+                    dms_state,
+                    next_checkin_at
+                )
+                VALUES (%s, %s, 'ACTIVE', %s)
+            """, (
+                user_id,
+                now,
+                next_checkin
+            ))
+
+        cur.execute("""
+            INSERT INTO activity_history
+            (user_id, event_type, description)
+            VALUES (
+                %s,
+                'ADMIN_FORCE_CHECKIN',
+                %s
+            )
+        """, (
+            user_id,
+            f"Admin forced a DMS check-in for {user['name']}"
+        ))
+
+        mysql.connection.commit()
+        cur.close()
+
+        flash(f"Check-in forced successfully for {user['name']}.")
+        return redirect(url_for("admin_user_details", user_id=user_id))
+
+    except Exception:
+        mysql.connection.rollback()
+        cur.close()
+        flash("Unable to force check-in. No changes were saved.")
+        return redirect(url_for("admin_user_details", user_id=user_id))
+
+@app.route("/admin-user/<int:user_id>/release/<int:release_id>/cancel", methods=["POST"])
+def admin_cancel_release(user_id, release_id):
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    cur = mysql.connection.cursor()
+
+    try:
+        # Only normal users can be affected by this action.
+        cur.execute("""
+            SELECT id, name
+            FROM users
+            WHERE id=%s AND role='user'
+        """, (user_id,))
+
+        user = cur.fetchone()
+
+        if not user:
+            cur.close()
+            flash("User not found.")
+            return redirect(url_for("admin_users"))
+
+        # Lock the release before checking or changing its state.
+        cur.execute("""
+            SELECT id, status
+            FROM releases
+            WHERE id=%s
+              AND user_id=%s
+            FOR UPDATE
+        """, (release_id, user_id))
+
+        release = cur.fetchone()
+
+        if not release:
+            cur.close()
+            flash("Release not found.")
+            return redirect(
+                url_for("admin_user_details", user_id=user_id)
+            )
+
+        if release["status"] not in ("PENDING", "PROCESSING", "PARTIAL"):
+            cur.close()
+            flash(
+                f"Release #{release_id} cannot be cancelled "
+                f"because its status is {release['status']}."
+            )
+            return redirect(
+                url_for("admin_user_details", user_id=user_id)
+            )
+
+        now = datetime.now()
+
+        # Cancel only deliveries that have not been sent.
+        # SENT deliveries must remain SENT.
+        cur.execute("""
+            UPDATE release_deliveries
+            SET status='CANCELLED',
+                error_message=%s
+            WHERE release_id=%s
+              AND status IN ('PENDING', 'FAILED')
+        """, (
+            "Release cancelled by admin",
+            release_id
+        ))
+
+        # Cancel the release itself.
+        cur.execute("""
+            UPDATE releases
+            SET status='CANCELLED',
+                completed_at=%s
+            WHERE id=%s
+              AND status IN ('PENDING', 'PROCESSING', 'PARTIAL')
+        """, (
+            now,
+            release_id
+        ))
+
+        if cur.rowcount != 1:
+            mysql.connection.rollback()
+            cur.close()
+            flash("Release could not be cancelled. No changes were saved.")
+            return redirect(
+                url_for("admin_user_details", user_id=user_id)
+            )
+
+        # Record the administrative action.
+        cur.execute("""
+            INSERT INTO activity_history
+            (user_id, event_type, description)
+            VALUES (
+                %s,
+                'RELEASE_CANCELLED',
+                %s
+            )
+        """, (
+            user_id,
+            f"Admin cancelled release #{release_id} for {user['name']}"
+        ))
+
+        mysql.connection.commit()
+        cur.close()
+
+        flash(f"Release #{release_id} cancelled successfully.")
+        return redirect(
+            url_for("admin_user_details", user_id=user_id)
+        )
+
+    except Exception:
+        mysql.connection.rollback()
+        cur.close()
+        flash("Unable to cancel release. No changes were saved.")
+        return redirect(
+            url_for("admin_user_details", user_id=user_id)
+        )
+
 @app.route("/admin-user/<int:user_id>")
 def admin_user_details(user_id):
-    if session.get("role") != "admin" or "admin_id" not in session:
-        return redirect(url_for("alogin"))
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
 
     cur = mysql.connection.cursor()
 
@@ -1982,8 +2249,9 @@ def admin_user_details(user_id):
 
 @app.route("/admin-monitoring")
 def admin_monitoring():
-    if session.get("role") != "admin" or "admin_id" not in session:
-        return redirect(url_for("alogin"))
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
 
     cur = mysql.connection.cursor()
 
@@ -2019,8 +2287,9 @@ def admin_monitoring():
 
 @app.route("/admin-releases")
 def admin_releases():
-    if session.get("role") != "admin" or "admin_id" not in session:
-        return redirect(url_for("alogin"))
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
 
     cur = mysql.connection.cursor()
 
@@ -2070,8 +2339,9 @@ def admin_releases():
 
 @app.route("/admin-activity")
 def admin_activity():
-    if session.get("role") != "admin" or "admin_id" not in session:
-        return redirect(url_for("alogin"))
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
 
     cur = mysql.connection.cursor()
 
@@ -2103,8 +2373,9 @@ def admin_activity():
 
 @app.route("/admin-dashboard")
 def admin_dashboard():
-    if session.get("role") != "admin" or "admin_id" not in session:
-        return redirect(url_for("alogin"))
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
 
     cur = mysql.connection.cursor()
 

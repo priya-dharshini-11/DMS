@@ -255,6 +255,7 @@
               <th>Deliveries</th>
               <th>Started</th>
               <th>Completed</th>
+              <th>Actions</th>
             </tr>
           </thead>
 
@@ -315,6 +316,24 @@
 
               <td>{{ release.completed_at or '—' }}</td>
 
+              <td>
+              {% if release.status in ['PENDING', 'PROCESSING', 'PARTIAL'] %}
+
+                <form method="POST"
+                    action="{{ url_for('admin_cancel_release', user_id=user.id, release_id=release.release_id) }}"
+                    onsubmit="return confirm('Cancel release #{{ release.release_id }}? Any deliveries that have not been sent will be cancelled.');">
+
+                  <button type="submit" class="btn btn-sm btn-outline-danger">
+                    Cancel Release
+                  </button>
+
+                </form>
+
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+
             </tr>
 
             {% endfor %}
@@ -336,6 +355,26 @@
   </div>
 </div>
 
+<!-- Admin Actions -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h5 class="mb-0">Admin Actions</h5>
+
+        <p class="text-muted mt-2 mb-3">
+            Administrative actions for this user.
+        </p>
+
+        <form method="POST"
+              action="{{ url_for('admin_force_checkin', user_id=user.id) }}"
+              onsubmit="return confirm('Force a DMS check-in for this user? Any active release will be cancelled.');">
+
+            <button type="submit" class="btn btn-primary">
+                Force Check-in
+            </button>
+
+        </form>
+    </div>
+</div>
 
 <!-- ACTIVITY -->
 
@@ -376,6 +415,7 @@
           </tbody>
 
         </table>
+
 
       </div>
 
