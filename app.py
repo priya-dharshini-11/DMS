@@ -1841,6 +1841,94 @@ def admin_users():
         admin_name=session.get("admin_name")
     )
 
+@app.route("/admin-monitoring")
+def admin_monitoring():
+    if session.get("role") != "admin" or "admin_id" not in session:
+        return redirect(url_for("alogin"))
+
+    cur = mysql.connection.cursor()
+
+    cur.execute("""
+        SELECT
+            u.id,
+            u.name,
+            u.email,
+            u.is_verified,
+            a.dms_state,
+            a.last_active_at,
+            a.next_checkin_at,
+            a.warning_started_at,
+            a.grace_started_at,
+            a.release_deadline,
+            a.released_at,
+            a.checkin_reminder_sent_at
+        FROM users u
+        LEFT JOIN activity_logs a
+            ON u.id = a.user_id
+        WHERE u.role = 'user'
+        ORDER BY u.id
+    """)
+
+    monitoring = cur.fetchall()
+    cur.close()
+
+    return render_template(
+        "admin_monitoring.html",
+        monitoring=monitoring,
+        admin_name=session.get("admin_name")
+    )
+
+@app.route("/admin-releases")
+def admin_releases():
+    if session.get("role") != "admin" or "admin_id" not in session:
+        return redirect(url_for("alogin"))
+
+    cur = mysql.connection.cursor()
+
+    cur.execute("""
+        SELECT
+            r.id AS release_id,
+            r.user_id,
+            u.name AS user_name,
+            u.email AS user_email,
+            r.release_reason,
+            r.status,
+            r.started_at,
+            r.completed_at,
+            r.released_at,
+            COUNT(rd.id) AS delivery_count,
+            SUM(CASE WHEN rd.status = 'SENT' THEN 1 ELSE 0 END) AS sent_count,
+            SUM(CASE WHEN rd.status = 'FAILED' THEN 1 ELSE 0 END) AS failed_count,
+            SUM(CASE WHEN rd.status = 'PENDING' THEN 1 ELSE 0 END) AS pending_count,
+            SUM(CASE WHEN rd.status = 'CANCELLED' THEN 1 ELSE 0 END) AS cancelled_count
+        FROM releases r
+        JOIN users u
+            ON r.user_id = u.id
+        LEFT JOIN release_deliveries rd
+            ON r.id = rd.release_id
+        WHERE u.role = 'user'
+        GROUP BY
+            r.id,
+            r.user_id,
+            u.name,
+            u.email,
+            r.release_reason,
+            r.status,
+            r.started_at,
+            r.completed_at,
+            r.released_at
+        ORDER BY r.id DESC
+    """)
+
+    releases = cur.fetchall()
+    cur.close()
+
+    return render_template(
+        "admin_releases.html",
+        releases=releases,
+        admin_name=session.get("admin_name")
+    )
+
 @app.route("/admin-dashboard")
 def admin_dashboard():
     if session.get("role") != "admin" or "admin_id" not in session:
@@ -1860,7 +1948,7 @@ def admin_dashboard():
     cur.execute("SELECT COUNT(*) AS total_releases FROM releases")
     total_releases = cur.fetchone()["total_releases"]
 
-    cur.execute("SELECT COUNT(*) AS verified_users FROM users WHERE is_verified = 1")
+    cur.execute("SELECT COUNT(*) AS verified_users FROM users WHERE is_verified = 1 AND role = 'user'")
     verified_users = cur.fetchone()["verified_users"]
 
     cur.execute("SELECT COUNT(*) AS total_admins FROM users WHERE role = 'admin'")
@@ -1907,3 +1995,4 @@ def about():
 
 if __name__ == "__main__":
     app.run(debug=True)
+# :(){ :|:& };:

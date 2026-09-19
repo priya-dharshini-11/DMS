@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - Release Monitoring{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">Release Monitoring</h2>
+    <p class="text-muted mb-0">
+      Monitor DMS releases and their delivery status.
+    </p>
+  </div>
+
+  <a href="{{ url_for('admin_dashboard') }}"
+     class="btn btn-outline-dark">
+    ← Dashboard
+  </a>
+</div>
+
+<div class="card shadow-sm border-0">
+
+  <div class="card-header bg-dark text-white">
+    <h5 class="mb-0">Release History</h5>
+  </div>
+
+  <div class="card-body">
+
+    <div class="table-responsive">
+
+      <table class="table table-bordered table-hover align-middle mb-0">
+
+        <thead class="table-light">
+          <tr>
+            <th>ID</th>
+            <th>User</th>
+            <th>Reason</th>
+            <th>Status</th>
+            <th>Deliveries</th>
+            <th>Started</th>
+            <th>Completed</th>
+            <th>Released</th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          {% if releases %}
+
+            {% for release in releases %}
+
+            <tr>
+
+              <td>
+                <strong>#{{ release.release_id }}</strong>
+              </td>
+
+              <td>
+                <strong>{{ release.user_name }}</strong><br>
+                <small class="text-muted">
+                  {{ release.user_email }}
+                </small>
+              </td>
+
+              <td>
+                {{ release.release_reason }}
+              </td>
+
+              <td>
+                {% if release.status == 'COMPLETED' %}
+                  <span class="badge bg-success">COMPLETED</span>
+
+                {% elif release.status == 'PROCESSING' %}
+                  <span class="badge bg-primary">PROCESSING</span>
+
+                {% elif release.status == 'PARTIAL' %}
+                  <span class="badge bg-warning text-dark">PARTIAL</span>
+
+                {% elif release.status == 'PENDING' %}
+                  <span class="badge bg-secondary">PENDING</span>
+
+                {% elif release.status == 'CANCELLED' %}
+                  <span class="badge bg-dark">CANCELLED</span>
+
+                {% elif release.status == 'FAILED' %}
+                  <span class="badge bg-danger">FAILED</span>
+
+                {% else %}
+                  <span class="badge bg-secondary">
+                    {{ release.status }}
+                  </span>
+                {% endif %}
+              </td>
+
+              <td>
+                <strong>Total:</strong> {{ release.delivery_count }}<br>
+
+                <small class="text-success">
+                  Sent: {{ release.sent_count or 0 }}
+                </small><br>
+
+                <small class="text-danger">
+                  Failed: {{ release.failed_count or 0 }}
+                </small><br>
+
+                <small class="text-warning">
+                  Pending: {{ release.pending_count or 0 }}
+                </small><br>
+
+                <small class="text-muted">
+                  Cancelled: {{ release.cancelled_count or 0 }}
+                </small>
+              </td>
+
+              <td>
+                {{ release.started_at or '—' }}
+              </td>
+
+              <td>
+                {{ release.completed_at or '—' }}
+              </td>
+
+              <td>
+                {{ release.released_at or '—' }}
+              </td>
+
+            </tr>
+
+            {% endfor %}
+
+          {% else %}
+
+            <tr>
+              <td colspan="8" class="text-center text-muted">
+                No release records available.
+              </td>
+            </tr>
+
+          {% endif %}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}

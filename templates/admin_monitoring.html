@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - DMS Monitoring{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">DMS Monitoring</h2>
+    <p class="text-muted mb-0">
+      Monitor the DMS lifecycle and important user timelines.
+    </p>
+  </div>
+
+  <a href="{{ url_for('admin_dashboard') }}"
+     class="btn btn-outline-dark">
+    ← Dashboard
+  </a>
+</div>
+
+<div class="card shadow-sm border-0">
+  <div class="card-header bg-dark text-white">
+    <h5 class="mb-0">DMS Lifecycle Monitoring</h5>
+  </div>
+
+  <div class="card-body">
+    <div class="table-responsive">
+
+      <table class="table table-bordered table-hover align-middle mb-0">
+
+        <thead class="table-light">
+          <tr>
+            <th>ID</th>
+            <th>User</th>
+            <th>DMS State</th>
+            <th>Last Active</th>
+            <th>Next Check-in</th>
+            <th>Warning Started</th>
+            <th>Grace Started</th>
+            <th>Release Deadline</th>
+            <th>Released</th>
+            <th>Reminder Sent</th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          {% if monitoring %}
+
+            {% for user in monitoring %}
+
+            <tr>
+              <td>{{ user.id }}</td>
+
+              <td>
+                <strong>{{ user.name }}</strong><br>
+                <small class="text-muted">{{ user.email }}</small>
+              </td>
+
+              <td>
+                {% if user.dms_state == 'ACTIVE' %}
+                  <span class="badge bg-success">ACTIVE</span>
+
+                {% elif user.dms_state == 'GRACE' %}
+                  <span class="badge bg-warning text-dark">GRACE</span>
+
+                {% elif user.dms_state == 'FINAL_WARNING' %}
+                  <span class="badge bg-danger">FINAL WARNING</span>
+
+                {% elif user.dms_state == 'RELEASE_READY' %}
+                  <span class="badge bg-danger">RELEASE READY</span>
+
+                {% elif user.dms_state == 'RELEASED' %}
+                  <span class="badge bg-dark">RELEASED</span>
+
+                {% else %}
+                  <span class="badge bg-secondary">
+                    {{ user.dms_state or 'N/A' }}
+                  </span>
+                {% endif %}
+              </td>
+
+              <td>{{ user.last_active_at or '—' }}</td>
+              <td>{{ user.next_checkin_at or '—' }}</td>
+              <td>{{ user.warning_started_at or '—' }}</td>
+              <td>{{ user.grace_started_at or '—' }}</td>
+              <td>{{ user.release_deadline or '—' }}</td>
+              <td>{{ user.released_at or '—' }}</td>
+              <td>{{ user.checkin_reminder_sent_at or '—' }}</td>
+            </tr>
+
+            {% endfor %}
+
+          {% else %}
+
+            <tr>
+              <td colspan="10" class="text-center text-muted">
+                No monitoring data available.
+              </td>
+            </tr>
+
+          {% endif %}
+
+        </tbody>
+
+      </table>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}
