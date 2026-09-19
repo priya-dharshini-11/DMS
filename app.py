@@ -1096,6 +1096,175 @@ def login():
         flash("Invalid user credentials")
     return render_template("login.html")
 
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        email = request.form["email"].strip().lower()
+
+        cur = mysql.connection.cursor()
+
+        cur.execute(
+            """
+            SELECT id, name, email
+            FROM users
+            WHERE email=%s
+              AND role='user'
+            """,
+            (email,)
+        )
+
+        user = cur.fetchone()
+
+        if user:
+            # Invalidate any previous unused reset tokens
+            cur.execute(
+                """
+                UPDATE password_reset_tokens
+                SET used_at=NOW()
+                WHERE user_id=%s
+                  AND used_at IS NULL
+                """,
+                (user["id"],)
+            )
+
+            # Generate a secure reset token
+            raw_token = secrets.token_urlsafe(32)
+            token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+
+            expires_at = datetime.now() + timedelta(hours=1)
+
+            cur.execute(
+                """
+                INSERT INTO password_reset_tokens
+                    (user_id, token_hash, expires_at)
+                VALUES
+                    (%s, %s, %s)
+                """,
+                (user["id"], token_hash, expires_at)
+            )
+
+            mysql.connection.commit()
+            cur.close()
+
+            reset_link = url_for(
+                "reset_password",
+                token=raw_token,
+                _external=True
+            )
+
+            send_email(
+                user["email"],
+                "Reset your DMS password",
+                f"""
+Hello {user["name"]},
+
+We received a request to reset your Dead Man's Switch password.
+
+Click the link below to create a new password:
+
+{reset_link}
+
+This password reset link expires in 1 hour and can only be used once.
+
+If you did not request a password reset, you can safely ignore this email.
+
+Regards,
+DMS
+"""
+            )
+        else:
+            cur.close()
+
+        flash(
+            "If an account exists with that email, "
+            "a password reset link has been sent."
+        )
+        return redirect(url_for("log"))
+
+    return render_template("forgot_password.html")
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+    cur = mysql.connection.cursor()
+
+    cur.execute(
+        """
+        SELECT id, user_id, expires_at
+        FROM password_reset_tokens
+        WHERE token_hash=%s
+          AND used_at IS NULL
+        """,
+        (token_hash,)
+    )
+
+    reset_token = cur.fetchone()
+
+    if not reset_token:
+        cur.close()
+        flash("Invalid or already used password reset link.")
+        return redirect(url_for("log"))
+
+    if datetime.now() > reset_token["expires_at"]:
+        cur.close()
+        flash("This password reset link has expired.")
+        return redirect(url_for("log"))
+
+    if request.method == "POST":
+
+        new_password = request.form["password"]
+        confirm_password = request.form["confirm_password"]
+
+        if new_password != confirm_password:
+            cur.close()
+            flash("Passwords do not match.")
+            return render_template("reset_password.html")
+
+        # Prevent keeping the current password
+        cur.execute(
+            "SELECT password_hash FROM users WHERE id=%s",
+            (reset_token["user_id"],)
+        )
+
+        user = cur.fetchone()
+
+        if user and check_password_hash(user["password_hash"], new_password):
+            cur.close()
+            flash("Your current password cannot be kept as a new password.")
+            return render_template("reset_password.html")
+
+        password_hash = generate_password_hash(new_password)
+
+        cur.execute(
+            """
+            UPDATE users
+            SET password_hash=%s
+            WHERE id=%s
+            """,
+            (password_hash, reset_token["user_id"])
+        )
+
+        cur.execute(
+            """
+            UPDATE password_reset_tokens
+            SET used_at=NOW()
+            WHERE id=%s
+              AND used_at IS NULL
+            """,
+            (reset_token["id"],)
+        )
+
+        mysql.connection.commit()
+        cur.close()
+
+        flash("Your password has been reset successfully. You can now login.")
+        return redirect(url_for("log"))
+
+    cur.close()
+    return render_template("reset_password.html")
+
 @app.route("/checkin/<token>", methods=["GET", "POST"])
 def checkin(token):
 
