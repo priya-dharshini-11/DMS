@@ -2068,6 +2068,39 @@ def admin_releases():
         admin_name=session.get("admin_name")
     )
 
+@app.route("/admin-activity")
+def admin_activity():
+    if session.get("role") != "admin" or "admin_id" not in session:
+        return redirect(url_for("alogin"))
+
+    cur = mysql.connection.cursor()
+
+    cur.execute("""
+        SELECT
+            ah.id,
+            ah.user_id,
+            u.name AS user_name,
+            u.email AS user_email,
+            ah.event_type,
+            ah.event_time,
+            ah.description
+        FROM activity_history ah
+        JOIN users u
+            ON ah.user_id = u.id
+        WHERE u.role = 'user'
+        ORDER BY ah.event_time DESC
+        LIMIT 100
+    """)
+
+    activity = cur.fetchall()
+    cur.close()
+
+    return render_template(
+        "admin_activity.html",
+        activity=activity,
+        admin_name=session.get("admin_name")
+    )
+
 @app.route("/admin-dashboard")
 def admin_dashboard():
     if session.get("role") != "admin" or "admin_id" not in session:

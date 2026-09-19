@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - Activity Monitoring{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">Activity Monitoring</h2>
+    <p class="text-muted mb-0">
+      Monitor recent activity across all DMS users.
+    </p>
+  </div>
+
+  <a href="{{ url_for('admin_dashboard') }}"
+     class="btn btn-outline-dark">
+    ← Dashboard
+  </a>
+</div>
+
+
+<div class="card shadow-sm border-0">
+
+  <div class="card-header bg-dark text-white">
+    <h5 class="mb-0">Recent Activity</h5>
+  </div>
+
+  <div class="card-body">
+
+    <div class="table-responsive">
+
+      <table class="table table-bordered table-hover align-middle mb-0">
+
+        <thead class="table-light">
+          <tr>
+            <th>Time</th>
+            <th>User</th>
+            <th>Event</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          {% if activity %}
+
+            {% for event in activity %}
+
+            <tr>
+
+              <td>
+                {{ event.event_time }}
+              </td>
+
+              <td>
+                <strong>{{ event.user_name }}</strong><br>
+                <small class="text-muted">
+                  {{ event.user_email }}
+                </small>
+              </td>
+
+              <td>
+
+                {% if event.event_type == 'LOGIN' %}
+                  <span class="badge bg-primary">LOGIN</span>
+
+                {% elif event.event_type == 'ACTIVITY_VERIFIED' %}
+                  <span class="badge bg-success">
+                    ACTIVITY VERIFIED
+                  </span>
+
+                {% elif event.event_type == 'REMINDER_SENT' %}
+                  <span class="badge bg-info text-dark">
+                    REMINDER SENT
+                  </span>
+
+                {% elif event.event_type in ['GRACE_STARTED', 'FINAL_WARNING'] %}
+                  <span class="badge bg-warning text-dark">
+                    {{ event.event_type.replace('_', ' ') }}
+                  </span>
+
+                {% elif event.event_type in [
+                    'RELEASE_TRIGGERED',
+                    'RELEASE_CONFIRMED'
+                ] %}
+                  <span class="badge bg-danger">
+                    {{ event.event_type.replace('_', ' ') }}
+                  </span>
+
+                {% elif event.event_type == 'RELEASE_CANCELLED' %}
+                  <span class="badge bg-dark">
+                    RELEASE CANCELLED
+                  </span>
+
+                {% elif event.event_type == 'NOMINEE_NOTIFIED' %}
+                  <span class="badge bg-success">
+                    NOMINEE NOTIFIED
+                  </span>
+
+                {% elif event.event_type.startswith('VAULT_') %}
+                  <span class="badge bg-secondary">
+                    {{ event.event_type.replace('_', ' ') }}
+                  </span>
+
+                {% elif event.event_type.startswith('NOMINEE_') %}
+                  <span class="badge bg-secondary">
+                    {{ event.event_type.replace('_', ' ') }}
+                  </span>
+
+                {% else %}
+                  <span class="badge bg-secondary">
+                    {{ event.event_type }}
+                  </span>
+                {% endif %}
+
+              </td>
+
+              <td>
+                {{ event.description or '—' }}
+              </td>
+
+            </tr>
+
+            {% endfor %}
+
+          {% else %}
+
+            <tr>
+              <td colspan="4"
+                  class="text-center text-muted">
+                No activity records available.
+              </td>
+            </tr>
+
+          {% endif %}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}
