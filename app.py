@@ -908,8 +908,10 @@ def register():
     if request.method == "POST":
         name = request.form["name"].strip()
         email = request.form["email"].strip().lower()
-        password = generate_password_hash(request.form["password"])
+        raw_password = request.form["password"]
         admin_key = request.form.get("admin_key", "").strip()
+
+        password = generate_password_hash(raw_password)
 
         role = "user"
         if admin_key:
@@ -920,16 +922,144 @@ def register():
                 return redirect(url_for("register"))
 
         cur = mysql.connection.cursor()
+
+        # Prevent duplicate email registration
         cur.execute(
-            "INSERT INTO users (name, email, password_hash, role) VALUES (%s, %s, %s, %s)",
+            "SELECT id, is_verified FROM users WHERE email=%s",
+            (email,)
+        )
+        existing_user = cur.fetchone()
+
+        if existing_user:
+            cur.close()
+
+            if existing_user["is_verified"]:
+                flash(
+                    "Sorry. We can't create an account with this email "
+                    "as this email is already being used by another account."
+                )
+            else:
+                flash(
+                    "Glad you're back. Verify your account "
+                    "to get your access for DMS portal."
+                )
+
+            return redirect(url_for("register"))
+
+        # Create account as unverified
+        cur.execute(
+            """
+            INSERT INTO users
+                (name, email, password_hash, role, is_verified)
+            VALUES
+                (%s, %s, %s, %s, 0)
+            """,
             (name, email, password, role)
         )
+
+        user_id = cur.lastrowid
+
+        # Generate a secure verification token
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+
+        cur.execute(
+            """
+            INSERT INTO email_verification_tokens
+                (user_id, token_hash)
+            VALUES
+                (%s, %s)
+            """,
+            (user_id, token_hash)
+        )
+
         mysql.connection.commit()
         cur.close()
 
-        flash("Registration successful. Please login.")
+        verification_link = url_for(
+            "verify_email",
+            token=raw_token,
+            _external=True
+        )
+
+        send_email(
+            email,
+            "Verify your DMS account",
+            f"""
+Hello {name},
+
+Welcome to Dead Man's Switch.
+
+Please verify your email address by clicking the link below:
+
+{verification_link}
+
+This verification link does not expire.
+
+If you did not create this account, you can ignore this email.
+
+Regards,
+DMS
+"""
+        )
+
+        flash(
+            "Your account creation request has been submitted. "
+            "For successful creation, verify your account with an email sent to you."
+        )
         return redirect(url_for("log"))
+
     return render_template("register.html")
+
+@app.route("/verify/<token>")
+def verify_email(token):
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+    cur = mysql.connection.cursor()
+
+    cur.execute(
+        """
+        SELECT id, user_id
+        FROM email_verification_tokens
+        WHERE token_hash=%s
+          AND used_at IS NULL
+        """,
+        (token_hash,)
+    )
+
+    verification = cur.fetchone()
+
+    if not verification:
+        cur.close()
+        flash("Invalid or already used verification link.")
+        return redirect(url_for("log"))
+
+    user_id = verification["user_id"]
+
+    cur.execute(
+        """
+        UPDATE users
+        SET is_verified=1
+        WHERE id=%s
+        """,
+        (user_id,)
+    )
+
+    cur.execute(
+        """
+        UPDATE email_verification_tokens
+        SET used_at=NOW()
+        WHERE id=%s
+          AND used_at IS NULL
+        """,
+        (verification["id"],)
+    )
+
+    mysql.connection.commit()
+    cur.close()
+
+    flash("Email verified successfully. You can now login.")
+    return redirect(url_for("log"))
 
 @app.route("/login")
 def log():
@@ -947,11 +1077,19 @@ def login():
         cur.close()
 
         if user and check_password_hash(user["password_hash"], password):
+
+            if not user["is_verified"]:
+                flash(
+                    "Please verify your email before logging in. "
+                    "Check your inbox for the verification email."
+                )
+                return redirect(url_for("log"))
+
             session.clear()
             session.permanent = True
             session["user_id"] = user["id"]
             session["name"] = user["name"]
-            session["role"] = "user" 
+            session["role"] = "user"
             reset_dms_cycle(user["id"], "LOGIN")
             return redirect(url_for("dashboard"))
 
@@ -1491,6 +1629,49 @@ def activity():
     cur.close()
     return render_template(r"activity.html", activity=data)
 
+@app.route("/admin-users")
+def admin_users():
+    if session.get("role") != "admin" or "admin_id" not in session:
+        return redirect(url_for("alogin"))
+
+    cur = mysql.connection.cursor()
+
+    cur.execute("""
+        SELECT
+            u.id,
+            u.name,
+            u.email,
+            u.is_verified,
+            u.created_at,
+            a.dms_state,
+            a.last_active_at,
+            COUNT(DISTINCT v.id) AS vault_count,
+            COUNT(DISTINCT n.id) AS nominee_count
+        FROM users u
+        LEFT JOIN activity_logs a ON u.id = a.user_id
+        LEFT JOIN vault_data v ON u.id = v.user_id
+        LEFT JOIN nominees n ON u.id = n.user_id
+        WHERE u.role = 'user'
+        GROUP BY
+            u.id,
+            u.name,
+            u.email,
+            u.is_verified,
+            u.created_at,
+            a.dms_state,
+            a.last_active_at
+        ORDER BY u.id
+    """)
+
+    users = cur.fetchall()
+    cur.close()
+
+    return render_template(
+        "admin_users.html",
+        users=users,
+        admin_name=session.get("admin_name")
+    )
+
 @app.route("/admin-dashboard")
 def admin_dashboard():
     if session.get("role") != "admin" or "admin_id" not in session:
@@ -1520,14 +1701,24 @@ def admin_dashboard():
     SELECT
         u.id,
         u.name,
+        u.email,
+        a.dms_state,
+        a.last_active_at,
         COUNT(DISTINCT v.id) AS vault_count,
         COUNT(DISTINCT n.id) AS nominee_count
-    FROM users u
-    LEFT JOIN vault_data v ON u.id = v.user_id
-    LEFT JOIN nominees n ON u.id = n.user_id
-    GROUP BY u.id, u.name
-    ORDER BY u.id
-    """)
+        FROM users u
+        LEFT JOIN activity_logs a ON u.id = a.user_id
+        LEFT JOIN vault_data v ON u.id = v.user_id
+        LEFT JOIN nominees n ON u.id = n.user_id
+        WHERE u.role = 'user'
+        GROUP BY
+        u.id,
+        u.name,
+        u.email,
+        a.dms_state,
+        a.last_active_at
+        ORDER BY u.id
+        """)
     user_stats = cur.fetchall()
 
     return render_template(

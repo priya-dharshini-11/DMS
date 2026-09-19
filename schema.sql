@@ -111,3 +111,16 @@ CREATE TABLE release_deliveries (
     UNIQUE KEY unique_release_delivery
         (release_id, nominee_id, vault_item_id)
 );
+
+CREATE TABLE email_verification_tokens (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    token_hash VARCHAR(255) NOT NULL UNIQUE,
+    used_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_email_verification_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
