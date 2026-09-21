@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2>Support Query #{{ query.id }}</h2>
+
+            <p class="text-muted mb-0">
+                Submitted by {{ query.user_name }}
+                · {{ query.user_email }}
+            </p>
+        </div>
+
+        <a href="{{ url_for('admin_support') }}"
+           class="btn btn-outline-secondary">
+            ← Back
+        </a>
+
+    </div>
+
+
+    <!-- USER INFORMATION -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-header">
+            <strong>User Information</strong>
+        </div>
+
+        <div class="card-body">
+
+            <p class="mb-1">
+                <strong>Name:</strong>
+                {{ query.user_name }}
+            </p>
+
+            <p class="mb-0">
+                <strong>Email:</strong>
+                {{ query.user_email }}
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- QUERY -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-header">
+
+            <div class="d-flex justify-content-between">
+
+                <strong>
+                    {{ query.subject }}
+                </strong>
+
+                <span class="badge bg-secondary">
+                    {{ query.category }}
+                </span>
+
+            </div>
+
+        </div>
+
+        <div class="card-body">
+
+            <div class="border rounded p-3 bg-light">
+                {{ query.message | e | replace('\n', '<br>') | safe }}
+            </div>
+
+            <div class="text-muted small mt-3">
+                Created: {{ query.created_at }}
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ADMIN RESPONSE -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-header">
+            <strong>Admin Response & Status</strong>
+        </div>
+
+        <div class="card-body">
+
+            <form method="POST"
+                  action="{{ url_for('admin_update_support_query', query_id=query.id) }}">
+
+                <div class="mb-3">
+
+                    <label class="form-label">
+                        Status
+                    </label>
+
+                    <select name="status"
+                            class="form-select"
+                            required>
+
+                        <option value="OPEN"
+                            {% if query.status == 'OPEN' %}selected{% endif %}>
+                            OPEN
+                        </option>
+
+                        <option value="IN_PROGRESS"
+                            {% if query.status == 'IN_PROGRESS' %}selected{% endif %}>
+                            IN PROGRESS
+                        </option>
+
+                        <option value="RESOLVED"
+                            {% if query.status == 'RESOLVED' %}selected{% endif %}>
+                            RESOLVED
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="mb-3">
+
+                    <label class="form-label">
+                        Response
+                    </label>
+
+                    <textarea
+                        name="admin_reply"
+                        class="form-control"
+                        rows="7"
+                        placeholder="Write your response to the user...">{{ query.admin_reply or '' }}</textarea>
+
+                </div>
+
+
+                <button type="submit"
+                        class="btn btn-primary">
+                    Save Response
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    <!-- DELETE -->
+
+    <div class="card border-danger shadow-sm">
+
+        <div class="card-body">
+
+            <h6 class="text-danger">
+                Danger Zone
+            </h6>
+
+            <p class="text-muted small">
+                Deleting this query removes it from active support
+                queries. A complete snapshot will remain in the support
+                audit history.
+            </p>
+
+            <form method="POST"
+                  action="{{ url_for('admin_delete_support_query', query_id=query.id) }}"
+                  onsubmit="return confirm('Delete this support query permanently from active queries? Its full audit record will be preserved.');">
+
+                <button type="submit"
+                        class="btn btn-outline-danger">
+                    Delete Query
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

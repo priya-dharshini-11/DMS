@@ -2429,6 +2429,648 @@ def activity():
     cur.close()
     return render_template(r"activity.html", activity=data)
 
+
+# ============================================================
+# SUPPORT / QUERY ROUTES
+# ============================================================
+
+SUPPORT_CATEGORIES = {
+    "GENERAL",
+    "ACCOUNT",
+    "DMS",
+    "VAULT",
+    "RELEASE",
+    "NOMINEE",
+    "TECHNICAL"
+}
+
+SUPPORT_STATUSES = {
+    "OPEN",
+    "IN_PROGRESS",
+    "RESOLVED"
+}
+
+
+@app.route("/support")
+def support():
+    active_check = require_active_user()
+    if active_check:
+        return active_check
+
+    cur = mysql.connection.cursor()
+
+    cur.execute("""
+        SELECT
+            id,
+            subject,
+            category,
+            status,
+            admin_reply,
+            created_at,
+            updated_at
+        FROM support_queries
+        WHERE user_id=%s
+        ORDER BY updated_at DESC
+    """, (session["user_id"],))
+
+    queries = cur.fetchall()
+    cur.close()
+
+    return render_template(
+        "support.html",
+        queries=queries
+    )
+
+
+@app.route("/support/new", methods=["GET", "POST"])
+def create_support_query():
+    active_check = require_active_user()
+    if active_check:
+        return active_check
+
+    if request.method == "POST":
+
+        subject = request.form.get("subject", "").strip()
+        category = request.form.get("category", "").strip().upper()
+        message = request.form.get("message", "").strip()
+
+        if not subject or not message:
+            flash("Subject and message are required.")
+            return render_template(
+                "support_new.html",
+                categories=sorted(SUPPORT_CATEGORIES)
+            )
+
+        if len(subject) > 150:
+            flash("Subject is too long.")
+            return render_template(
+                "support_new.html",
+                categories=sorted(SUPPORT_CATEGORIES)
+            )
+
+        if category not in SUPPORT_CATEGORIES:
+            flash("Invalid support category.")
+            return render_template(
+                "support_new.html",
+                categories=sorted(SUPPORT_CATEGORIES)
+            )
+
+        cur = mysql.connection.cursor()
+
+        try:
+            cur.execute("""
+                INSERT INTO support_queries
+                    (
+                        user_id,
+                        subject,
+                        category,
+                        message,
+                        status
+                    )
+                VALUES
+                    (
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        'OPEN'
+                    )
+            """, (
+                session["user_id"],
+                subject,
+                category,
+                message
+            ))
+
+            query_id = cur.lastrowid
+
+            cur.execute("""
+                INSERT INTO activity_history
+                    (
+                        user_id,
+                        event_type,
+                        description
+                    )
+                VALUES
+                    (
+                        %s,
+                        'SUPPORT_QUERY_CREATED',
+                        %s
+                    )
+            """, (
+                session["user_id"],
+                f"Support query #{query_id} was created."
+            ))
+
+            mysql.connection.commit()
+
+            flash("Your support query has been submitted.")
+
+        except Exception:
+            mysql.connection.rollback()
+            raise
+
+        finally:
+            cur.close()
+
+        return redirect(url_for("support"))
+
+    return render_template(
+        "support_new.html",
+        categories=sorted(SUPPORT_CATEGORIES)
+    )
+
+
+@app.route("/support/<int:query_id>")
+def support_query_details(query_id):
+    active_check = require_active_user()
+    if active_check:
+        return active_check
+
+    cur = mysql.connection.cursor()
+
+    cur.execute("""
+        SELECT
+            id,
+            subject,
+            category,
+            message,
+            status,
+            admin_reply,
+            created_at,
+            updated_at
+        FROM support_queries
+        WHERE id=%s
+          AND user_id=%s
+    """, (
+        query_id,
+        session["user_id"]
+    ))
+
+    query = cur.fetchone()
+    cur.close()
+
+    if not query:
+        flash("Support query not found.")
+        return redirect(url_for("support"))
+
+    return render_template(
+        "support_query.html",
+        query=query
+    )
+
+
+@app.route("/support/<int:query_id>/delete", methods=["POST"])
+def delete_support_query(query_id):
+    active_check = require_active_user()
+    if active_check:
+        return active_check
+
+    cur = mysql.connection.cursor()
+
+    try:
+        cur.execute("""
+            SELECT
+                id,
+                user_id,
+                subject,
+                category,
+                message
+            FROM support_queries
+            WHERE id=%s
+              AND user_id=%s
+            FOR UPDATE
+        """, (
+            query_id,
+            session["user_id"]
+        ))
+
+        query = cur.fetchone()
+
+        if not query:
+            cur.close()
+            flash("Support query not found.")
+            return redirect(url_for("support"))
+
+        cur.execute("""
+            SELECT
+                id,
+                name,
+                email
+            FROM users
+            WHERE id=%s
+              AND role='user'
+        """, (session["user_id"],))
+
+        user = cur.fetchone()
+
+        if not user:
+            cur.close()
+            flash("User account not found.")
+            return redirect(url_for("dashboard"))
+
+        # Preserve the complete query before deletion.
+        cur.execute("""
+            INSERT INTO support_query_audit
+                (
+                    query_id,
+                    user_id,
+                    user_name,
+                    user_email,
+                    subject,
+                    category,
+                    message,
+                    event_type,
+                    description
+                )
+            VALUES
+                (
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    'SUPPORT_QUERY_DELETED',
+                    %s
+                )
+        """, (
+            query["id"],
+            user["id"],
+            user["name"],
+            user["email"],
+            query["subject"],
+            query["category"],
+            query["message"],
+            f"User deleted support query #{query['id']}."
+        ))
+
+        cur.execute("""
+            DELETE FROM support_queries
+            WHERE id=%s
+              AND user_id=%s
+        """, (
+            query_id,
+            session["user_id"]
+        ))
+
+        cur.execute("""
+            INSERT INTO activity_history
+                (
+                    user_id,
+                    event_type,
+                    description
+                )
+            VALUES
+                (
+                    %s,
+                    'SUPPORT_QUERY_DELETED',
+                    %s
+                )
+        """, (
+            session["user_id"],
+            f"User deleted support query #{query_id}."
+        ))
+
+        mysql.connection.commit()
+
+        flash("Support query deleted.")
+
+    except Exception:
+        mysql.connection.rollback()
+        raise
+
+    finally:
+        cur.close()
+
+    return redirect(url_for("support"))
+
+
+# ============================================================
+# ADMIN SUPPORT ROUTES
+# ============================================================
+
+@app.route("/admin-support")
+def admin_support():
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    cur = mysql.connection.cursor()
+
+    cur.execute("""
+        SELECT
+            sq.id,
+            sq.user_id,
+            u.name AS user_name,
+            u.email AS user_email,
+            sq.subject,
+            sq.category,
+            sq.status,
+            sq.created_at,
+            sq.updated_at
+        FROM support_queries sq
+        JOIN users u
+            ON sq.user_id = u.id
+        WHERE u.role='user'
+        ORDER BY sq.updated_at DESC
+    """)
+
+    queries = cur.fetchall()
+
+    cur.execute("""
+        SELECT
+            id,
+            query_id,
+            user_id,
+            user_name,
+            user_email,
+            subject,
+            category,
+            message,
+            event_type,
+            event_time,
+            description
+        FROM support_query_audit
+        ORDER BY event_time DESC
+        LIMIT 100
+    """)
+
+    deleted_queries = cur.fetchall()
+
+    cur.close()
+
+    return render_template(
+        "admin_support.html",
+        queries=queries,
+        deleted_queries=deleted_queries,
+        admin_name=session.get("admin_name")
+    )
+
+
+@app.route("/admin-support/<int:query_id>")
+def admin_support_query_details(query_id):
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    cur = mysql.connection.cursor()
+
+    cur.execute("""
+        SELECT
+            sq.id,
+            sq.user_id,
+            u.name AS user_name,
+            u.email AS user_email,
+            sq.subject,
+            sq.category,
+            sq.message,
+            sq.status,
+            sq.admin_reply,
+            sq.created_at,
+            sq.updated_at
+        FROM support_queries sq
+        JOIN users u
+            ON sq.user_id = u.id
+        WHERE sq.id=%s
+          AND u.role='user'
+    """, (query_id,))
+
+    query = cur.fetchone()
+    cur.close()
+
+    if not query:
+        flash("Support query not found.")
+        return redirect(url_for("admin_support"))
+
+    return render_template(
+        "admin_support_query.html",
+        query=query,
+        admin_name=session.get("admin_name")
+    )
+
+
+@app.route("/admin-support/<int:query_id>/update", methods=["POST"])
+def admin_update_support_query(query_id):
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    status = request.form.get("status", "").strip().upper()
+    admin_reply = request.form.get("admin_reply", "").strip()
+
+    if status not in SUPPORT_STATUSES:
+        flash("Invalid support status.")
+        return redirect(
+            url_for(
+                "admin_support_query_details",
+                query_id=query_id
+            )
+        )
+
+    cur = mysql.connection.cursor()
+
+    try:
+        cur.execute("""
+            SELECT
+                sq.id,
+                sq.user_id,
+                sq.status,
+                u.name AS user_name
+            FROM support_queries sq
+            JOIN users u
+                ON sq.user_id=u.id
+            WHERE sq.id=%s
+              AND u.role='user'
+            FOR UPDATE
+        """, (query_id,))
+
+        query = cur.fetchone()
+
+        if not query:
+            cur.close()
+            flash("Support query not found.")
+            return redirect(url_for("admin_support"))
+
+        old_status = query["status"]
+
+        cur.execute("""
+            UPDATE support_queries
+            SET
+                status=%s,
+                admin_reply=%s
+            WHERE id=%s
+        """, (
+            status,
+            admin_reply if admin_reply else None,
+            query_id
+        ))
+
+        if admin_reply:
+            cur.execute("""
+                INSERT INTO activity_history
+                    (
+                        user_id,
+                        event_type,
+                        description
+                    )
+                VALUES
+                    (
+                        %s,
+                        'ADMIN_SUPPORT_REPLIED',
+                        %s
+                    )
+            """, (
+                query["user_id"],
+                f"Admin replied to support query #{query_id}."
+            ))
+
+        if old_status != status:
+            cur.execute("""
+                INSERT INTO activity_history
+                    (
+                        user_id,
+                        event_type,
+                        description
+                    )
+                VALUES
+                    (
+                        %s,
+                        'ADMIN_SUPPORT_STATUS_UPDATED',
+                        %s
+                    )
+            """, (
+                query["user_id"],
+                f"Admin changed support query #{query_id} status "
+                f"from {old_status} to {status}."
+            ))
+
+        mysql.connection.commit()
+
+        flash("Support query updated.")
+
+    except Exception:
+        mysql.connection.rollback()
+        raise
+
+    finally:
+        cur.close()
+
+    return redirect(
+        url_for(
+            "admin_support_query_details",
+            query_id=query_id
+        )
+    )
+
+
+@app.route("/admin-support/<int:query_id>/delete", methods=["POST"])
+def admin_delete_support_query(query_id):
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    cur = mysql.connection.cursor()
+
+    try:
+        cur.execute("""
+            SELECT
+                sq.id,
+                sq.user_id,
+                sq.subject,
+                sq.category,
+                sq.message,
+                u.name AS user_name,
+                u.email AS user_email
+            FROM support_queries sq
+            JOIN users u
+                ON sq.user_id=u.id
+            WHERE sq.id=%s
+              AND u.role='user'
+            FOR UPDATE
+        """, (query_id,))
+
+        query = cur.fetchone()
+
+        if not query:
+            cur.close()
+            flash("Support query not found.")
+            return redirect(url_for("admin_support"))
+
+        # Preserve complete query snapshot before deletion.
+        cur.execute("""
+            INSERT INTO support_query_audit
+                (
+                    query_id,
+                    user_id,
+                    user_name,
+                    user_email,
+                    subject,
+                    category,
+                    message,
+                    event_type,
+                    description
+                )
+            VALUES
+                (
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    'ADMIN_SUPPORT_QUERY_DELETED',
+                    %s
+                )
+        """, (
+            query["id"],
+            query["user_id"],
+            query["user_name"],
+            query["user_email"],
+            query["subject"],
+            query["category"],
+            query["message"],
+            f"Administrator deleted support query #{query['id']}."
+        ))
+
+        cur.execute("""
+            DELETE FROM support_queries
+            WHERE id=%s
+        """, (query_id,))
+
+        cur.execute("""
+            INSERT INTO activity_history
+                (
+                    user_id,
+                    event_type,
+                    description
+                )
+            VALUES
+                (
+                    %s,
+                    'ADMIN_SUPPORT_QUERY_DELETED',
+                    %s
+                )
+        """, (
+            query["user_id"],
+            f"Administrator deleted support query #{query_id}."
+        ))
+
+        mysql.connection.commit()
+
+        flash("Support query deleted and preserved in the audit history.")
+
+    except Exception:
+        mysql.connection.rollback()
+        raise
+
+    finally:
+        cur.close()
+
+    return redirect(url_for("admin_support"))
+    
 def require_admin():
     if session.get("role") != "admin" or "admin_id" not in session:
         return redirect(url_for("alogin"))

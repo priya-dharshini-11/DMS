@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <div class="mb-4">
+        <h2>Create Support Query</h2>
+        <p class="text-muted">
+            Tell the administrator what you need help with.
+        </p>
+    </div>
+
+    <div class="card shadow-sm border-0">
+
+        <div class="card-body">
+
+            <form method="POST">
+
+                <div class="mb-3">
+                    <label class="form-label">
+                        Subject
+                    </label>
+
+                    <input
+                        type="text"
+                        name="subject"
+                        class="form-control"
+                        maxlength="150"
+                        required
+                        placeholder="Briefly describe your issue">
+                </div>
+
+
+                <div class="mb-3">
+
+                    <label class="form-label">
+                        Category
+                    </label>
+
+                    <select name="category"
+                            class="form-select"
+                            required>
+
+                        <option value="">
+                            Select a category
+                        </option>
+
+                        {% for category in categories %}
+                            <option value="{{ category }}">
+                                {{ category }}
+                            </option>
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <div class="mb-3">
+
+                    <label class="form-label">
+                        Message
+                    </label>
+
+                    <textarea
+                        name="message"
+                        class="form-control"
+                        rows="7"
+                        required
+                        placeholder="Describe your problem or question..."></textarea>
+
+                </div>
+
+
+                <div class="d-flex gap-2">
+
+                    <button type="submit"
+                            class="btn btn-primary">
+                        Submit Query
+                    </button>
+
+                    <a href="{{ url_for('support') }}"
+                       class="btn btn-outline-secondary">
+                        Cancel
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

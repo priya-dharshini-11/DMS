@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2>Support & Queries</h2>
+            <p class="text-muted mb-0">
+                Manage user support requests.
+            </p>
+        </div>
+
+        <a href="{{ url_for('admin_dashboard') }}"
+           class="btn btn-outline-secondary">
+            ← Admin Dashboard
+        </a>
+
+    </div>
+
+
+    <!-- ACTIVE QUERIES -->
+
+    <div class="card shadow-sm border-0 mb-5">
+
+        <div class="card-header">
+            <h5 class="mb-0">
+                Active Support Queries
+            </h5>
+        </div>
+
+        <div class="card-body p-0">
+
+            {% if queries %}
+
+                <div class="table-responsive">
+
+                    <table class="table table-hover mb-0">
+
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>User</th>
+                                <th>Subject</th>
+                                <th>Category</th>
+                                <th>Status</th>
+                                <th>Updated</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            {% for query in queries %}
+
+                                <tr>
+
+                                    <td>
+                                        #{{ query.id }}
+                                    </td>
+
+                                    <td>
+                                        <strong>
+                                            {{ query.user_name }}
+                                        </strong>
+                                        <br>
+                                        <small class="text-muted">
+                                            {{ query.user_email }}
+                                        </small>
+                                    </td>
+
+                                    <td>
+                                        {{ query.subject }}
+                                    </td>
+
+                                    <td>
+                                        {{ query.category }}
+                                    </td>
+
+                                    <td>
+
+                                        {% if query.status == 'OPEN' %}
+                                            <span class="badge bg-primary">
+                                                OPEN
+                                            </span>
+
+                                        {% elif query.status == 'IN_PROGRESS' %}
+                                            <span class="badge bg-warning text-dark">
+                                                IN PROGRESS
+                                            </span>
+
+                                        {% elif query.status == 'RESOLVED' %}
+                                            <span class="badge bg-success">
+                                                RESOLVED
+                                            </span>
+                                        {% endif %}
+
+                                    </td>
+
+                                    <td>
+                                        {{ query.updated_at }}
+                                    </td>
+
+                                    <td>
+
+                                        <a href="{{ url_for('admin_support_query_details', query_id=query.id) }}"
+                                           class="btn btn-sm btn-outline-primary">
+                                            Open
+                                        </a>
+
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            {% else %}
+
+                <div class="p-4 text-center text-muted">
+                    No active support queries.
+                </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+
+    <!-- DELETED QUERY HISTORY -->
+
+    <div class="card shadow-sm border-0">
+
+        <div class="card-header bg-dark text-white">
+
+            <h5 class="mb-0">
+                Deleted Query History
+            </h5>
+
+        </div>
+
+        <div class="card-body p-0">
+
+            {% if deleted_queries %}
+
+                <div class="table-responsive">
+
+                    <table class="table table-hover mb-0">
+
+                        <thead>
+
+                            <tr>
+                                <th>Query</th>
+                                <th>User</th>
+                                <th>Subject</th>
+                                <th>Category</th>
+                                <th>Event</th>
+                                <th>Time</th>
+                                <th>Details</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            {% for item in deleted_queries %}
+
+                                <tr>
+
+                                    <td>
+                                        #{{ item.query_id }}
+                                    </td>
+
+                                    <td>
+                                        <strong>
+                                            {{ item.user_name }}
+                                        </strong>
+                                        <br>
+                                        <small class="text-muted">
+                                            {{ item.user_email }}
+                                        </small>
+                                    </td>
+
+                                    <td>
+                                        {{ item.subject }}
+                                    </td>
+
+                                    <td>
+                                        {{ item.category }}
+                                    </td>
+
+                                    <td>
+
+                                        {% if item.event_type == 'SUPPORT_QUERY_DELETED' %}
+
+                                            <span class="badge bg-warning text-dark">
+                                                USER DELETED
+                                            </span>
+
+                                        {% elif item.event_type == 'ADMIN_SUPPORT_QUERY_DELETED' %}
+
+                                            <span class="badge bg-danger">
+                                                ADMIN DELETED
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+                                    <td>
+                                        {{ item.event_time }}
+                                    </td>
+
+                                    <td>
+
+                                        <button
+                                            type="button"
+                                            class="btn btn-sm btn-outline-dark"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#queryModal{{ item.id }}">
+                                            View
+                                        </button>
+
+                                    </td>
+
+                                </tr>
+
+
+                                <!-- QUERY AUDIT MODAL -->
+
+                                <div class="modal fade"
+                                     id="queryModal{{ item.id }}"
+                                     tabindex="-1">
+
+                                    <div class="modal-dialog modal-lg">
+
+                                        <div class="modal-content">
+
+                                            <div class="modal-header">
+
+                                                <h5 class="modal-title">
+                                                    Deleted Query #{{ item.query_id }}
+                                                </h5>
+
+                                                <button type="button"
+                                                        class="btn-close"
+                                                        data-bs-dismiss="modal">
+                                                </button>
+
+                                            </div>
+
+                                            <div class="modal-body">
+
+                                                <p>
+                                                    <strong>User:</strong>
+                                                    {{ item.user_name }}
+                                                    ({{ item.user_email }})
+                                                </p>
+
+                                                <p>
+                                                    <strong>Subject:</strong>
+                                                    {{ item.subject }}
+                                                </p>
+
+                                                <p>
+                                                    <strong>Category:</strong>
+                                                    {{ item.category }}
+                                                </p>
+
+                                                <p>
+                                                    <strong>Event:</strong>
+                                                    {{ item.event_type }}
+                                                </p>
+
+                                                <p>
+                                                    <strong>Time:</strong>
+                                                    {{ item.event_time }}
+                                                </p>
+
+                                                <hr>
+
+                                                <h6>Original Query</h6>
+
+                                                <div class="border rounded p-3 bg-light">
+                                                    {{ item.message | e | replace('\n', '<br>') | safe }}
+                                                </div>
+
+                                                <hr>
+
+                                                <p class="small text-muted mb-0">
+                                                    {{ item.description }}
+                                                </p>
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            {% else %}
+
+                <div class="p-4 text-center text-muted">
+                    No deleted support queries recorded.
+                </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

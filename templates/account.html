@@ -105,6 +105,39 @@
     </div>
   </div>
 </div>
+<br>
+<!-- SUPPORT & QUERIES -->
+
+<div class="card shadow-sm border-0 mb-4">
+
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">🆘 Support & Queries</h5>
+    </div>
+
+    <div class="card-body">
+
+        <h6 class="mb-2">
+            Need help?
+        </h6>
+
+        <p class="text-muted mb-3">
+            Create a support query if you have a question or problem
+            related to your account or DMS features.
+        </p>
+
+        <a href="{{ url_for('support') }}"
+           class="btn btn-outline-primary">
+            View Support Queries
+        </a>
+
+        <a href="{{ url_for('create_support_query') }}"
+           class="btn btn-primary ms-2">
+            + New Query
+        </a>
+
+    </div>
+
+</div>
 
 {% endif %}
 
