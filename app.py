@@ -274,6 +274,7 @@ def send_checkin_reminders():
         FROM users u
         JOIN activity_logs a ON u.id = a.user_id
         WHERE u.role = 'user'
+          AND u.account_status = 'ACTIVE'
           AND a.dms_state = 'ACTIVE'
           AND a.next_checkin_at <= %s
           AND a.checkin_reminder_sent_at IS NULL
@@ -389,12 +390,14 @@ def process_dms_cycles():
 
     cur.execute("""
         SELECT
-            user_id,
-            dms_state,
-            next_checkin_at,
-            grace_started_at,
-            release_deadline
-        FROM activity_logs
+            a.user_id,
+            a.dms_state,
+            a.next_checkin_at,
+            a.grace_started_at,
+            a.release_deadline
+        FROM activity_logs a
+        JOIN users u ON u.id = a.user_id
+        WHERE u.account_status = 'ACTIVE'
     """)
 
     activities = cur.fetchall()
@@ -509,9 +512,11 @@ def process_release_ready_users():
 
     try:
         cur.execute("""
-            SELECT user_id
-            FROM activity_logs
-            WHERE dms_state='RELEASE_READY'
+            SELECT a.user_id
+            FROM activity_logs a
+            JOIN users u ON u.id = a.user_id
+            WHERE a.dms_state='RELEASE_READY'
+              AND u.account_status = 'ACTIVE'
             FOR UPDATE
         """)
 
@@ -523,15 +528,21 @@ def process_release_ready_users():
 
             # Re-check the state while holding the transaction lock.
             cur.execute("""
-                SELECT dms_state
-                FROM activity_logs
-                WHERE user_id=%s
+                SELECT
+                    a.dms_state,
+                    u.account_status
+                FROM activity_logs a
+                JOIN users u ON u.id = a.user_id
+                WHERE a.user_id=%s
                 FOR UPDATE
             """, (user_id,))
 
             current_state = cur.fetchone()
 
             if not current_state:
+                continue
+
+            if current_state["account_status"] != "ACTIVE":
                 continue
 
             if current_state["dms_state"] != "RELEASE_READY":
@@ -1182,6 +1193,119 @@ DMS
         return redirect(url_for("log"))
 
     return render_template("forgot_password.html")
+
+@app.route("/admin-user/<int:user_id>/reset-password", methods=["POST"])
+def admin_reset_password(user_id):
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    cur = mysql.connection.cursor()
+
+    try:
+        # Only normal users can be reset by this admin action.
+        cur.execute(
+            """
+            SELECT id, name, email
+            FROM users
+            WHERE id=%s
+              AND role='user'
+            """,
+            (user_id,)
+        )
+
+        user = cur.fetchone()
+
+        if not user:
+            cur.close()
+            flash("User not found.")
+            return redirect(url_for("admin_users"))
+
+        # Invalidate any previous unused reset tokens.
+        cur.execute(
+            """
+            UPDATE password_reset_tokens
+            SET used_at=NOW()
+            WHERE user_id=%s
+              AND used_at IS NULL
+            """,
+            (user_id,)
+        )
+
+        # Generate a new secure reset token.
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+
+        expires_at = datetime.now() + timedelta(hours=1)
+
+        cur.execute(
+            """
+            INSERT INTO password_reset_tokens
+                (user_id, token_hash, expires_at)
+            VALUES
+                (%s, %s, %s)
+            """,
+            (user_id, token_hash, expires_at)
+        )
+
+        # Record the admin action.
+        cur.execute(
+            """
+            INSERT INTO activity_history
+                (user_id, event_type, description)
+            VALUES
+                (%s, 'ADMIN_PASSWORD_RESET', %s)
+            """,
+            (
+                user_id,
+                f"Admin initiated a password reset for {user['email']}"
+            )
+        )
+
+        mysql.connection.commit()
+        cur.close()
+
+        reset_link = url_for(
+            "reset_password",
+            token=raw_token,
+            _external=True
+        )
+
+        send_email(
+            user["email"],
+            "DMS password reset initiated",
+            f"""
+Hello {user["name"]},
+
+An administrator has initiated a password reset for your
+Dead Man's Switch account.
+
+Click the link below to create a new password:
+
+{reset_link}
+
+This password reset link expires in 1 hour and can only be used once.
+
+If you did not expect this email, please contact the DMS administrator.
+
+Regards,
+DMS
+"""
+        )
+
+        flash(f"Password reset link sent to {user['email']}.")
+        return redirect(
+            url_for("admin_user_details", user_id=user_id)
+        )
+
+    except Exception:
+        mysql.connection.rollback()
+        cur.close()
+
+        flash("Unable to initiate password reset. No changes were saved.")
+        return redirect(
+            url_for("admin_user_details", user_id=user_id)
+        )
 
 @app.route("/reset-password/<token>", methods=["GET", "POST"])
 def reset_password(token):
@@ -2106,6 +2230,196 @@ def admin_cancel_release(user_id, release_id):
         return redirect(
             url_for("admin_user_details", user_id=user_id)
         )
+
+@app.route("/admin-user/<int:user_id>/resend-verification", methods=["POST"])
+def admin_resend_verification(user_id):
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    cur = mysql.connection.cursor()
+
+    try:
+        cur.execute("""
+            SELECT id, name, email, is_verified
+            FROM users
+            WHERE id=%s AND role='user'
+        """, (user_id,))
+
+        user = cur.fetchone()
+
+        if not user:
+            cur.close()
+            flash("User not found.")
+            return redirect(url_for("admin_users"))
+
+        if user["is_verified"]:
+            cur.close()
+            flash("This user's email is already verified.")
+            return redirect(
+                url_for("admin_user_details", user_id=user_id)
+            )
+
+        # Invalidate all previous unused verification tokens.
+        cur.execute("""
+            UPDATE email_verification_tokens
+            SET used_at=NOW()
+            WHERE user_id=%s
+              AND used_at IS NULL
+        """, (user_id,))
+
+        # Generate a fresh verification token.
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+
+        cur.execute("""
+            INSERT INTO email_verification_tokens
+                (user_id, token_hash)
+            VALUES
+                (%s, %s)
+        """, (
+            user_id,
+            token_hash
+        ))
+
+        # Record the admin action.
+        cur.execute("""
+            INSERT INTO activity_history
+                (user_id, event_type, description)
+            VALUES
+                (%s, 'ADMIN_RESEND_VERIFICATION', %s)
+        """, (
+            user_id,
+            f"Admin resent email verification link to {user['email']}"
+        ))
+
+        mysql.connection.commit()
+        cur.close()
+
+        verification_link = url_for(
+            "verify_email",
+            token=raw_token,
+            _external=True
+        )
+
+        send_email(
+            user["email"],
+            "Verify your DMS account",
+            f"""
+Hello {user['name']},
+
+This is a new verification link for your Dead Man's Switch account.
+
+Please verify your email address by clicking the link below:
+
+{verification_link}
+
+This verification link does not expire.
+
+If you did not request this email, you can ignore it.
+
+Regards,
+DMS
+"""
+        )
+
+        flash(
+            f"New verification link sent successfully to {user['email']}."
+        )
+
+        return redirect(
+            url_for("admin_user_details", user_id=user_id)
+        )
+
+    except Exception:
+        mysql.connection.rollback()
+        cur.close()
+
+        flash(
+            "Unable to resend verification link. "
+            "No changes were saved."
+        )
+
+        return redirect(
+            url_for("admin_user_details", user_id=user_id)
+        )
+
+@app.route("/admin-user/<int:user_id>/manual-verify", methods=["POST"])
+def admin_manual_verify(user_id):
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    cur = mysql.connection.cursor()
+
+    try:
+        # Only normal users can be manually verified.
+        cur.execute("""
+            SELECT id, name, email, is_verified
+            FROM users
+            WHERE id=%s AND role='user'
+        """, (user_id,))
+
+        user = cur.fetchone()
+
+        if not user:
+            cur.close()
+            flash("User not found.")
+            return redirect(url_for("admin_users"))
+
+        # Do not modify an account that is already verified.
+        if user["is_verified"]:
+            cur.close()
+            flash("This user's email is already verified.")
+            return redirect(
+                url_for("admin_user_details", user_id=user_id)
+            )
+
+        # Mark the user as verified.
+        cur.execute("""
+            UPDATE users
+            SET is_verified=1
+            WHERE id=%s
+        """, (user_id,))
+
+        # Invalidate any unused email verification tokens.
+        cur.execute("""
+            UPDATE email_verification_tokens
+            SET used_at=NOW()
+            WHERE user_id=%s
+              AND used_at IS NULL
+        """, (user_id,))
+
+        # Record the admin action.
+        cur.execute("""
+            INSERT INTO activity_history
+            (user_id, event_type, description)
+            VALUES (
+                %s,
+                'ADMIN_MANUAL_VERIFICATION',
+                %s
+            )
+        """, (
+            user_id,
+            f"Admin manually verified {user['email']}"
+        ))
+
+        mysql.connection.commit()
+        cur.close()
+
+        flash(f"{user['name']} was manually verified successfully.")
+        return redirect(
+            url_for("admin_user_details", user_id=user_id)
+        )
+
+    except Exception:
+        mysql.connection.rollback()
+        cur.close()
+        flash("Unable to manually verify user. No changes were saved.")
+        return redirect(
+            url_for("admin_user_details", user_id=user_id)
+        )
+
 
 @app.route("/admin-user/<int:user_id>")
 def admin_user_details(user_id):
