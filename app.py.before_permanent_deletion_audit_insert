@@ -283,33 +283,6 @@ def permanently_delete_due_accounts():
         for user in users:
             user_id = user["id"]
 
-            # Preserve a minimal admin audit record before
-            # permanently deleting the user's account data.
-            cur.execute("""
-                INSERT INTO account_deletion_audit
-                    (
-                        user_id,
-                        user_name,
-                        user_email,
-                        event_type,
-                        event_time,
-                        description
-                    )
-                VALUES
-                    (
-                        %s,
-                        %s,
-                        %s,
-                        'ACCOUNT_PERMANENTLY_DELETED',
-                        NOW(),
-                        'Account permanently deleted after the 30-day recovery period.'
-                    )
-            """, (
-                user["id"],
-                user["name"],
-                user["email"]
-            ))
-
             # Find releases belonging to this user.
             cur.execute("""
                 SELECT id

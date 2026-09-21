@@ -7,7 +7,5 @@
   <a href="{{ url_for('view_vault') }}" class="btn btn-primary w-50 p-30 m-3">View Vault Items</a>
   <a href="/nominees" class="btn btn-primary w-50 p-30 m-3">Manage Nominees</a>
   <a href="/activity" class="btn btn-primary w-50 p-30 m-3">Track Activity</a>
-  <a href="{{ url_for('account') }}" class="btn btn-outline-dark w-50 p-30 m-3">My Account</a>
-
 </div>
 {% endblock %}

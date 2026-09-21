@@ -373,6 +373,40 @@
             </button>
 
         </form>
+
+        {% if not user.is_verified %}
+        <form method="POST"
+              action="{{ url_for('admin_resend_verification', user_id=user.id) }}"
+              onsubmit="return confirm('Resend a new verification link to this user?');">
+
+            <button type="submit" class="btn btn-outline-primary">
+              Resend Verification
+            </button>
+
+        </form>
+
+        {% endif %}
+
+        {% if not user.is_verified %}
+        <form method="POST"
+              action="{{ url_for('admin_manual_verify', user_id=user.id) }}"
+              onsubmit="return confirm('Manually verify this user?');">
+
+            <button type="submit" class="btn btn-outline-success">
+              Manually Verify
+            </button>
+
+        </form>
+        {% endif %}
+
+        <form method="POST"
+              action="{{ url_for('admin_reset_password', user_id=user.id) }}"
+              onsubmit="return confirm('Initiate a password reset for this user? A reset link will be sent to their email.');">
+
+            <button type="submit" class="btn btn-outline-warning">
+                Reset Password
+            </button>
+        </form>
     </div>
 </div>
 

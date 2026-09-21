@@ -148,7 +148,7 @@ def send_email(to, subject, body, attachments=None):
         smtp.send_message(msg)
 
 def reset_dms_cycle(user_id, event_type, cur=None):
-    if event_type not in ("LOGIN", "ACTIVITY_VERIFIED", "RESTORE"):
+    if event_type not in ("LOGIN", "ACTIVITY_VERIFIED"):
         raise ValueError("Invalid DMS activity event type")
 
     now = datetime.now()
@@ -236,12 +236,11 @@ def reset_dms_cycle(user_id, event_type, cur=None):
             VALUES (%s, %s, 'ACTIVE', %s)
         """, (user_id, now, next_checkin))
 
-    if event_type == "LOGIN":
-        description = "User login"
-    elif event_type == "RESTORE":
-        description = "Account restored after deletion request"
-    else:
-        description = "User verified activity"
+    description = (
+        "User login"
+        if event_type == "LOGIN"
+        else "User verified activity"
+    )
 
     cur.execute("""
         INSERT INTO activity_history
@@ -252,146 +251,6 @@ def reset_dms_cycle(user_id, event_type, cur=None):
     if own_cursor:
         mysql.connection.commit()
         cur.close()
-
-def permanently_delete_due_accounts():
-    """
-    Permanently delete accounts whose 30-day deletion grace period
-    has expired.
-
-    DELETION_PENDING accounts remain fully recoverable until their
-    scheduled deletion timestamp.
-    """
-
-    cur = mysql.connection.cursor()
-
-    try:
-        cur.execute("""
-            SELECT
-                id,
-                email,
-                name
-            FROM users
-            WHERE role='user'
-              AND account_status='DELETION_PENDING'
-              AND deletion_scheduled_at IS NOT NULL
-              AND deletion_scheduled_at <= NOW()
-            FOR UPDATE
-        """)
-
-        users = cur.fetchall()
-
-        for user in users:
-            user_id = user["id"]
-
-            # Preserve a minimal admin audit record before
-            # permanently deleting the user's account data.
-            cur.execute("""
-                INSERT INTO account_deletion_audit
-                    (
-                        user_id,
-                        user_name,
-                        user_email,
-                        event_type,
-                        event_time,
-                        description
-                    )
-                VALUES
-                    (
-                        %s,
-                        %s,
-                        %s,
-                        'ACCOUNT_PERMANENTLY_DELETED',
-                        NOW(),
-                        'Account permanently deleted after the 30-day recovery period.'
-                    )
-            """, (
-                user["id"],
-                user["name"],
-                user["email"]
-            ))
-
-            # Find releases belonging to this user.
-            cur.execute("""
-                SELECT id
-                FROM releases
-                WHERE user_id=%s
-            """, (user_id,))
-
-            releases = cur.fetchall()
-
-            release_ids = [row["id"] for row in releases]
-
-            # Deliveries reference releases.
-            for release_id in release_ids:
-                cur.execute("""
-                    DELETE FROM release_deliveries
-                    WHERE release_id=%s
-                """, (release_id,))
-
-            # Release records.
-            cur.execute("""
-                DELETE FROM releases
-                WHERE user_id=%s
-            """, (user_id,))
-
-            # Direct user-owned records.
-            cur.execute("""
-                DELETE FROM activity_logs
-                WHERE user_id=%s
-            """, (user_id,))
-
-            cur.execute("""
-                DELETE FROM vault_data
-                WHERE user_id=%s
-            """, (user_id,))
-
-            cur.execute("""
-                DELETE FROM nominees
-                WHERE user_id=%s
-            """, (user_id,))
-
-            cur.execute("""
-                DELETE FROM activity_history
-                WHERE user_id=%s
-            """, (user_id,))
-
-            cur.execute("""
-                DELETE FROM email_verification_tokens
-                WHERE user_id=%s
-            """, (user_id,))
-
-            cur.execute("""
-                DELETE FROM password_reset_tokens
-                WHERE user_id=%s
-            """, (user_id,))
-
-            # Finally remove the account itself.
-            cur.execute("""
-                DELETE FROM users
-                WHERE id=%s
-                  AND account_status='DELETION_PENDING'
-            """, (user_id,))
-
-        mysql.connection.commit()
-
-        if users:
-            print(
-                f"Permanent deletion processor removed "
-                f"{len(users)} account(s)."
-            )
-
-    except Exception:
-        mysql.connection.rollback()
-        raise
-
-    finally:
-        cur.close()
-
-
-def run_permanent_deletion_job():
-    with app.app_context():
-        permanently_delete_due_accounts()
-
 
 def send_checkin_reminders():
     """
@@ -1055,19 +914,6 @@ def check_inactive_users():
 def index():
     return render_template("index.html")
 
-scheduler.add_job(
-    run_permanent_deletion_job,
-    "interval",
-    minutes=10,
-    id="permanent_account_deletion",
-    replace_existing=True
-)
-
-if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-    if not scheduler.running:
-        scheduler.start()
-
-
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -1242,19 +1088,6 @@ def login():
         cur.close()
 
         if user and check_password_hash(user["password_hash"], password):
-
-            if user["account_status"] == "DELETION_PENDING":
-                session.clear()
-                session.permanent = True
-                session["user_id"] = user["id"]
-                session["name"] = user["name"]
-                session["role"] = "user"
-
-                flash(
-                    "Your account is scheduled for deletion. "
-                    "Restore it from the Account page within 30 days."
-                )
-                return redirect(url_for("account"))
 
             if not user["is_verified"]:
                 flash(
@@ -1708,118 +1541,6 @@ def account():
     )
 
 
-@app.route("/account/restore", methods=["POST"])
-def restore_account():
-    if "user_id" not in session:
-        return redirect(url_for("log"))
-
-    user_id = session["user_id"]
-    cur = mysql.connection.cursor()
-
-    try:
-        cur.execute("""
-            SELECT
-                id,
-                account_status,
-                deletion_requested_at,
-                deletion_scheduled_at
-            FROM users
-            WHERE id=%s
-              AND role='user'
-            FOR UPDATE
-        """, (user_id,))
-
-        user = cur.fetchone()
-
-        if not user:
-            mysql.connection.rollback()
-            cur.close()
-            session.clear()
-            return redirect(url_for("log"))
-
-        if user["account_status"] != "DELETION_PENDING":
-            mysql.connection.rollback()
-            cur.close()
-            flash("Your account is not currently scheduled for deletion.")
-            return redirect(url_for("account"))
-
-        # Cancel any unfinished release transaction.
-        cur.execute("""
-            SELECT id
-            FROM releases
-            WHERE user_id=%s
-              AND status IN ('PENDING', 'PROCESSING', 'PARTIAL')
-            FOR UPDATE
-        """, (user_id,))
-
-        releases = cur.fetchall()
-
-        for release in releases:
-            release_id = release["id"]
-
-            cur.execute("""
-                UPDATE release_deliveries
-                SET
-                    status='CANCELLED',
-                    error_message='Release cancelled because account was restored.'
-                WHERE release_id=%s
-                  AND status IN ('PENDING', 'FAILED')
-            """, (release_id,))
-
-            cur.execute("""
-                UPDATE releases
-                SET
-                    status='CANCELLED',
-                    completed_at=NOW()
-                WHERE id=%s
-                  AND status IN ('PENDING', 'PROCESSING')
-            """, (release_id,))
-
-        # Restore account first.
-        cur.execute("""
-            UPDATE users
-            SET
-                account_status='ACTIVE',
-                deletion_requested_at=NULL,
-                deletion_scheduled_at=NULL
-            WHERE id=%s
-        """, (user_id,))
-
-        # Start a completely fresh DMS cycle.
-        reset_dms_cycle(
-            user_id,
-            "RESTORE",
-            cur=cur
-        )
-
-        cur.execute("""
-            INSERT INTO activity_history
-                (user_id, event_type, event_time, description)
-            VALUES
-                (%s, 'ACCOUNT_RESTORED', NOW(),
-                 'Account restored before permanent deletion. A fresh DMS cycle was started.')
-        """, (user_id,))
-
-        mysql.connection.commit()
-
-    except Exception:
-        mysql.connection.rollback()
-        cur.close()
-        raise
-
-    cur.close()
-
-    session["user_id"] = user_id
-    session["role"] = "user"
-
-    flash(
-        "Your account has been restored successfully. "
-        "A fresh 30-day DMS cycle has started."
-    )
-
-    return redirect(url_for("dashboard"))
-
-
 @app.route("/account/delete", methods=["POST"])
 def request_account_deletion():
     if "user_id" not in session:
@@ -1948,54 +1669,15 @@ def request_account_deletion():
     return redirect(url_for("account"))
 
 
-def get_current_user_account_status():
-    if "user_id" not in session:
-        return None
-
-    cur = mysql.connection.cursor()
-
-    cur.execute("""
-        SELECT account_status
-        FROM users
-        WHERE id=%s AND role='user'
-    """, (session["user_id"],))
-
-    row = cur.fetchone()
-    cur.close()
-
-    return row["account_status"] if row else None
-
-
-def require_active_user():
-    if "user_id" not in session:
-        return redirect(url_for("log"))
-
-    status = get_current_user_account_status()
-
-    if status == "DELETION_PENDING":
-        return redirect(url_for("account"))
-
-    if status != "ACTIVE":
-        session.clear()
-        return redirect(url_for("log"))
-
-    return None
-
-
 @app.route("/dashboard")
 def dashboard():
-    active_check = require_active_user()
-    if active_check:
-        return active_check
-
+    if "user_id" not in session:
+        return redirect(url_for("log"))
+    
     return render_template("dashboard.html", name=session["name"])
 
 @app.route("/vault", methods=["GET", "POST"])
 def vault():
-
-    active_check = require_active_user()
-    if active_check:
-        return active_check
     if "user_id" not in session:
         return redirect(url_for("log"))
     cur = mysql.connection.cursor()
@@ -2056,10 +1738,6 @@ def vault():
 
 @app.route("/view-vault")
 def view_vault():
-
-    active_check = require_active_user()
-    if active_check:
-        return active_check
     if "user_id" not in session:
         return redirect(url_for("log"))
 
@@ -2072,10 +1750,6 @@ def view_vault():
 
 @app.route("/edit-vault/<int:item_id>", methods=["GET", "POST"])
 def edit_vault(item_id):
-
-    active_check = require_active_user()
-    if active_check:
-        return active_check
     if "user_id" not in session:
         return redirect(url_for("login"))
 
@@ -2137,10 +1811,6 @@ def edit_vault(item_id):
 
 @app.route("/delete-vault/<int:item_id>", methods=["POST"])
 def delete_vault(item_id):
-
-    active_check = require_active_user()
-    if active_check:
-        return active_check
     if "user_id" not in session:
         return redirect(url_for("login"))
 
@@ -2175,10 +1845,6 @@ def delete_vault(item_id):
 
 @app.route("/nominees", methods=["GET", "POST"])
 def nominees():
-
-    active_check = require_active_user()
-    if active_check:
-        return active_check
     if "user_id" not in session:
         return redirect(url_for("login"))
 
@@ -2264,10 +1930,6 @@ def nominees():
 
 @app.route("/delete-nominee/<int:nominee_id>", methods=["POST"])
 def delete_nominee(nominee_id):
-
-    active_check = require_active_user()
-    if active_check:
-        return active_check
     if "user_id" not in session:
         return redirect(url_for("login"))
 
@@ -2307,10 +1969,6 @@ def delete_nominee(nominee_id):
 
 @app.route("/edit-nominee/<int:nominee_id>", methods=["GET", "POST"])
 def edit_nominee(nominee_id):
-
-    active_check = require_active_user()
-    if active_check:
-        return active_check
     if "user_id" not in session:
         return redirect(url_for("login"))
 
@@ -2417,10 +2075,6 @@ def edit_nominee(nominee_id):
 
 @app.route("/activity")
 def activity():
-
-    active_check = require_active_user()
-    if active_check:
-        return active_check
     if "user_id" not in session:
         return redirect(url_for("login"))
     cur = mysql.connection.cursor()
@@ -3179,20 +2833,7 @@ def admin_activity():
         JOIN users u
             ON ah.user_id = u.id
         WHERE u.role = 'user'
-
-        UNION ALL
-
-        SELECT
-            ada.id,
-            ada.user_id,
-            ada.user_name,
-            ada.user_email,
-            ada.event_type,
-            ada.event_time,
-            ada.description
-        FROM account_deletion_audit ada
-
-        ORDER BY event_time DESC
+        ORDER BY ah.event_time DESC
         LIMIT 100
     """)
 

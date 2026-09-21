@@ -97,11 +97,6 @@
                     NOMINEE NOTIFIED
                   </span>
 
-                {% elif event.event_type == 'ACCOUNT_PERMANENTLY_DELETED' %}
-                  <span class="badge bg-danger">
-                    ACCOUNT PERMANENTLY DELETED
-                  </span>
-
                 {% elif event.event_type.startswith('VAULT_') %}
                   <span class="badge bg-secondary">
                     {{ event.event_type.replace('_', ' ') }}

@@ -283,33 +283,6 @@ def permanently_delete_due_accounts():
         for user in users:
             user_id = user["id"]
 
-            # Preserve a minimal admin audit record before
-            # permanently deleting the user's account data.
-            cur.execute("""
-                INSERT INTO account_deletion_audit
-                    (
-                        user_id,
-                        user_name,
-                        user_email,
-                        event_type,
-                        event_time,
-                        description
-                    )
-                VALUES
-                    (
-                        %s,
-                        %s,
-                        %s,
-                        'ACCOUNT_PERMANENTLY_DELETED',
-                        NOW(),
-                        'Account permanently deleted after the 30-day recovery period.'
-                    )
-            """, (
-                user["id"],
-                user["name"],
-                user["email"]
-            ))
-
             # Find releases belonging to this user.
             cur.execute("""
                 SELECT id
@@ -386,11 +359,6 @@ def permanently_delete_due_accounts():
 
     finally:
         cur.close()
-
-
-def run_permanent_deletion_job():
-    with app.app_context():
-        permanently_delete_due_accounts()
 
 
 def send_checkin_reminders():
@@ -1056,16 +1024,15 @@ def index():
     return render_template("index.html")
 
 scheduler.add_job(
-    run_permanent_deletion_job,
+    permanently_delete_due_accounts,
     "interval",
     minutes=10,
     id="permanent_account_deletion",
     replace_existing=True
 )
 
-if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-    if not scheduler.running:
-        scheduler.start()
+if not scheduler.running:
+    scheduler.start()
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -3179,20 +3146,7 @@ def admin_activity():
         JOIN users u
             ON ah.user_id = u.id
         WHERE u.role = 'user'
-
-        UNION ALL
-
-        SELECT
-            ada.id,
-            ada.user_id,
-            ada.user_name,
-            ada.user_email,
-            ada.event_type,
-            ada.event_time,
-            ada.description
-        FROM account_deletion_audit ada
-
-        ORDER BY event_time DESC
+        ORDER BY ah.event_time DESC
         LIMIT 100
     """)
 

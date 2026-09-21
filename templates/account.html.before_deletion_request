@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}My Account{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="mb-1">My Account</h3>
+    <p class="text-muted mb-0">
+      Manage your DMS account and security settings.
+    </p>
+  </div>
+
+  <a href="{{ url_for('dashboard') }}" class="btn btn-outline-dark">
+    ← Dashboard
+  </a>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <h5 class="card-title">Account Information</h5>
+
+    <p class="mb-2">
+      <strong>Name:</strong> {{ user.name }}
+    </p>
+
+    <p class="mb-2">
+      <strong>Email:</strong> {{ user.email }}
+    </p>
+
+    <p class="mb-2">
+      <strong>Email verification:</strong>
+      {% if user.is_verified %}
+        <span class="text-success">Verified</span>
+      {% else %}
+        <span class="text-warning">Not verified</span>
+      {% endif %}
+    </p>
+
+    <p class="mb-0">
+      <strong>Account status:</strong>
+      {{ user.account_status }}
+    </p>
+  </div>
+</div>
+
+<div class="card border-danger">
+  <div class="card-body">
+    <h5 class="card-title text-danger">Delete Account</h5>
+
+    <p class="mb-2">
+      Account deletion uses a <strong>30-day recovery period</strong>.
+    </p>
+
+    <p class="text-muted mb-3">
+      During this period, your vault and nominees remain freeze محفوظ.
+      You can restore your account before permanent deletion.
+    </p>
+
+    <button type="button" class="btn btn-outline-danger" disabled>
+      Delete Account
+    </button>
+
+    <div class="form-text mt-2">
+      Account deletion will be enabled after the deletion workflow is completed.
+    </div>
+  </div>
+</div>
+
+{% endblock %}

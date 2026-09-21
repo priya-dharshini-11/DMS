@@ -1,0 +1,55 @@
+import os
+import smtplib
+
+from dotenv import load_dotenv
+from email.message import EmailMessage
+
+
+load_dotenv()
+
+
+print("1 - SMTP connection", flush=True)
+
+conn = smtplib.SMTP(
+    "smtp.gmail.com",
+    587,
+    timeout=10
+)
+
+print("2 - connected", flush=True)
+
+conn.ehlo()
+print("3 - EHLO", flush=True)
+
+conn.starttls()
+print("4 - TLS OK", flush=True)
+
+conn.ehlo()
+print("5 - EHLO after TLS", flush=True)
+
+conn.login(
+    os.getenv("MAIL_USERNAME"),
+    os.getenv("MAIL_PASSWORD")
+)
+print("6 - LOGIN OK", flush=True)
+
+
+msg = EmailMessage()
+
+msg["Subject"] = "DMS DELIVERY TEST 2"
+msg["From"] = os.getenv("MAIL_USERNAME")
+msg["To"] = "peacefulpriyadharshini@gmail.com"
+
+msg.set_content(
+    "Testing DMS release email delivery."
+)
+
+print("7 - sending through raw SMTP", flush=True)
+
+conn.send_message(msg)
+
+print("8 - raw SMTP send OK", flush=True)
+
+conn.quit()
+
+print("9 - finished", flush=True)
