@@ -2928,6 +2928,188 @@ def admin_manual_verify(user_id):
         )
 
 
+@app.route("/admin-user/<int:user_id>/delete", methods=["POST"])
+def admin_delete_user(user_id):
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    # Never allow an admin to delete their own account.
+    if session.get("admin_id") == user_id:
+        flash("You cannot delete your own admin account.")
+        return redirect(url_for("admin_user_details", user_id=user_id))
+
+    cur = mysql.connection.cursor()
+
+    try:
+        cur.execute("""
+            SELECT
+                id,
+                name,
+                email,
+                role,
+                account_status
+            FROM users
+            WHERE id=%s
+            FOR UPDATE
+        """, (user_id,))
+
+        user = cur.fetchone()
+
+        if not user or user["role"] != "user":
+            cur.close()
+            flash("User not found.")
+            return redirect(url_for("admin_users"))
+
+        if user["account_status"] != "ACTIVE":
+            cur.close()
+            flash("This account is not active and cannot be scheduled for deletion.")
+            return redirect(url_for("admin_user_details", user_id=user_id))
+
+        cur.execute("""
+            UPDATE users
+            SET
+                account_status='DELETION_PENDING',
+                deletion_requested_at=NOW(),
+                deletion_scheduled_at=DATE_ADD(NOW(), INTERVAL 30 DAY)
+            WHERE id=%s
+              AND role='user'
+              AND account_status='ACTIVE'
+        """, (user_id,))
+
+        # Cancel unfinished releases and their unsent deliveries.
+        cur.execute("""
+            UPDATE release_deliveries rd
+            JOIN releases r
+                ON rd.release_id = r.id
+            SET rd.status='CANCELLED'
+            WHERE r.user_id=%s
+              AND r.status IN ('PENDING', 'PROCESSING', 'PARTIAL')
+              AND rd.status IN ('PENDING', 'FAILED')
+        """, (user_id,))
+
+        cur.execute("""
+            UPDATE releases
+            SET status='CANCELLED'
+            WHERE user_id=%s
+              AND status IN ('PENDING', 'PROCESSING', 'PARTIAL')
+        """, (user_id,))
+
+        cur.execute("""
+            INSERT INTO activity_history
+                (user_id, event_type, description)
+            VALUES
+                (
+                    %s,
+                    'ACCOUNT_DELETION_REQUESTED',
+                    'Account scheduled for deletion by an administrator.'
+                )
+        """, (user_id,))
+
+        mysql.connection.commit()
+
+        flash(
+            f"Account for {user['name']} has been scheduled for deletion "
+            "after the 30-day recovery period."
+        )
+
+    except Exception:
+        mysql.connection.rollback()
+        raise
+
+    finally:
+        cur.close()
+
+    return redirect(url_for("admin_user_details", user_id=user_id))
+
+
+@app.route("/admin-user/<int:user_id>/restore", methods=["POST"])
+def admin_restore_user(user_id):
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    cur = mysql.connection.cursor()
+
+    try:
+        cur.execute("""
+            SELECT
+                id,
+                name,
+                email,
+                role,
+                account_status
+            FROM users
+            WHERE id=%s
+            FOR UPDATE
+        """, (user_id,))
+
+        user = cur.fetchone()
+
+        if not user or user["role"] != "user":
+            cur.close()
+            flash("User not found.")
+            return redirect(url_for("admin_users"))
+
+        if user["account_status"] != "DELETION_PENDING":
+            cur.close()
+            flash("This account is not currently pending deletion.")
+            return redirect(url_for("admin_user_details", user_id=user_id))
+
+        # Cancel unfinished releases and unsent deliveries.
+        cur.execute("""
+            UPDATE release_deliveries rd
+            JOIN releases r
+                ON rd.release_id = r.id
+            SET rd.status='CANCELLED'
+            WHERE r.user_id=%s
+              AND r.status IN ('PENDING', 'PROCESSING', 'PARTIAL')
+              AND rd.status IN ('PENDING', 'FAILED')
+        """, (user_id,))
+
+        cur.execute("""
+            UPDATE releases
+            SET status='CANCELLED'
+            WHERE user_id=%s
+              AND status IN ('PENDING', 'PROCESSING', 'PARTIAL')
+        """, (user_id,))
+
+        # Restore the account first.
+        cur.execute("""
+            UPDATE users
+            SET
+                account_status='ACTIVE',
+                deletion_requested_at=NULL,
+                deletion_scheduled_at=NULL
+            WHERE id=%s
+              AND role='user'
+              AND account_status='DELETION_PENDING'
+        """, (user_id,))
+
+        # Start a completely fresh DMS cycle.
+        reset_dms_cycle(
+            user_id,
+            "RESTORE",
+            cur=cur
+        )
+
+        mysql.connection.commit()
+
+        flash(
+            f"Account for {user['name']} has been restored. "
+            "A fresh 30-day DMS cycle has started."
+        )
+
+    except Exception:
+        mysql.connection.rollback()
+        raise
+
+    finally:
+        cur.close()
+
+    return redirect(url_for("admin_user_details", user_id=user_id))
+
+
 @app.route("/admin-user/<int:user_id>")
 def admin_user_details(user_id):
     admin_check = require_admin()
@@ -2943,7 +3125,10 @@ def admin_user_details(user_id):
             name,
             email,
             is_verified,
-            created_at
+            created_at,
+            account_status,
+            deletion_requested_at,
+            deletion_scheduled_at
         FROM users
         WHERE id = %s AND role = 'user'
     """, (user_id,))

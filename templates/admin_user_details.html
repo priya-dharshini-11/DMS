@@ -410,6 +410,78 @@
     </div>
 </div>
 
+<!-- ADMIN ACCOUNT ACTIONS -->
+
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-header bg-danger text-white">
+    <h5 class="mb-0">Account Management</h5>
+  </div>
+
+  <div class="card-body">
+
+    {% if user.account_status == 'DELETION_PENDING' %}
+
+      <div class="border border-warning rounded p-3 bg-light">
+
+        <h6 class="text-warning mb-2">
+          ⚠️ Deletion Pending
+        </h6>
+
+        <p class="mb-2">
+          This account is scheduled for permanent deletion on:
+        </p>
+
+        <p class="fw-bold mb-2">
+          {{ user.deletion_scheduled_at }}
+        </p>
+
+        <p class="text-muted small mb-3">
+          The account remains recoverable during the 30-day recovery period.
+        </p>
+
+        <form method="POST"
+              action="{{ url_for('admin_restore_user', user_id=user.id) }}"
+              onsubmit="return confirm('Restore {{ user.name }}\'s account? A fresh 30-day DMS cycle will start.');">
+
+          <button type="submit" class="btn btn-outline-success">
+            Restore Account
+          </button>
+
+        </form>
+
+      </div>
+
+    {% else %}
+
+      <div class="border border-danger rounded p-3 bg-light">
+
+        <h6 class="text-danger mb-2">
+          Danger Zone
+        </h6>
+
+        <p class="text-muted small">
+          Schedule this account for deletion. The account will remain
+          recoverable for 30 days before permanent deletion.
+        </p>
+
+        <form method="POST"
+              action="{{ url_for('admin_delete_user', user_id=user.id) }}"
+              onsubmit="return confirm('Schedule {{ user.name }} for account deletion? The account will remain recoverable for 30 days before permanent deletion.');">
+
+          <button type="submit" class="btn btn-outline-danger">
+            Schedule Account Deletion
+          </button>
+
+        </form>
+
+      </div>
+
+    {% endif %}
+
+  </div>
+</div>
+
+
 <!-- ACTIVITY -->
 
 <div class="card shadow-sm border-0 mb-4">
