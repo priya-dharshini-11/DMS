@@ -1996,59 +1996,123 @@ def vault():
     active_check = require_active_user()
     if active_check:
         return active_check
+
     if "user_id" not in session:
         return redirect(url_for("log"))
+
     cur = mysql.connection.cursor()
+
     if request.method == "POST":
-        title = request.form["title"].strip()
-        content = request.form.get("content","").strip()
+
+        title = request.form.get("title", "").strip()
+        content = request.form.get("content", "").strip()
         release_enabled = 1 if request.form.get("release_enabled") == "on" else 0
-        file =request.files.get("file")
+        file = request.files.get("file")
 
-        if file and file.filename:
-            if not allowed_file(file.filename):
-                flash("File type not allowed")
-                return redirect(url_for("vault"))
+        has_content = bool(content)
+        has_file = bool(file and file.filename)
 
+        # At least one of text or file is required.
+        if not has_content and not has_file:
+            cur.close()
+            flash("Please provide either text content or a file.")
+            return redirect(url_for("vault"))
+
+        # Validate uploaded file before saving anything.
+        if has_file and not allowed_file(file.filename):
+            cur.close()
+            flash("File type not allowed.")
+            return redirect(url_for("vault"))
+
+        # Determine the item type.
+        if has_content and has_file:
+            item_type = "mixed"
+        elif has_file:
+            item_type = "file"
+        else:
+            item_type = "text"
+
+        unique_filename = None
+        original_filename = None
+        file_path = None
+        file_type = None
+
+        # Save file if one was provided.
+        if has_file:
             os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+
             original_filename = secure_filename(file.filename)
             unique_filename = f"{uuid.uuid4().hex}_{original_filename}"
 
-            file_path = os.path.join(app.config["UPLOAD_FOLDER"], unique_filename)
+            file_path = os.path.join(
+                app.config["UPLOAD_FOLDER"],
+                unique_filename
+            )
+
             file.save(file_path)
+            file_type = file.mimetype
 
-            cur.execute("""
+        # Store text and/or file information.
+        cur.execute(
+            """
             INSERT INTO vault_data
-            (user_id, title, item_type, file_name, original_file_name, file_path, file_type, release_enabled)
-            VALUES (%s, %s, 'file', %s, %s, %s, %s, %s)
-            """, (session["user_id"],title,unique_filename,original_filename,file_path,file.mimetype,release_enabled))
+                (
+                    user_id,
+                    title,
+                    item_type,
+                    content,
+                    file_name,
+                    original_file_name,
+                    file_path,
+                    file_type,
+                    release_enabled
+                )
+            VALUES
+                (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                session["user_id"],
+                title,
+                item_type,
+                content if has_content else None,
+                unique_filename,
+                original_filename,
+                file_path,
+                file_type,
+                release_enabled
+            )
+        )
 
-            cur.execute("""
-    INSERT INTO activity_history
-    (user_id, event_type, description)
-    VALUES (%s, 'VAULT_ITEM_ADDED', 'Vault item added')
-""", (session["user_id"],))
-
-            mysql.connection.commit()
-            flash("File vault item added")
-
-        else:
-            cur.execute("""
-            INSERT INTO vault_data
-            (user_id, title, item_type, content, release_enabled)
-            VALUES (%s, %s, 'text', %s, %s)
-            """, (session["user_id"], title, content, release_enabled))
-
-            cur.execute("""
+        cur.execute(
+            """
             INSERT INTO activity_history
-            (user_id, event_type, description)
-            VALUES (%s, 'VAULT_ITEM_ADDED', 'Vault item added')
-            """, (session["user_id"],))
+                (user_id, event_type, description)
+            VALUES
+                (%s, 'VAULT_ITEM_ADDED', 'Vault item added')
+            """,
+            (session["user_id"],)
+        )
 
-            mysql.connection.commit()
-            flash("Text vault item added")
+        mysql.connection.commit()
 
-    cur.execute("SELECT * FROM vault_data WHERE user_id=%s ORDER BY created_at DESC", (session["user_id"],))
+
+        if item_type == "mixed":
+            flash("Text and file vault item added.")
+        elif item_type == "file":
+            flash("File vault item added.")
+        else:
+            flash("Text vault item added.")
+
+    cur.execute(
+        """
+        SELECT *
+        FROM vault_data
+        WHERE user_id=%s
+        ORDER BY created_at DESC
+        """,
+        (session["user_id"],)
+    )
+
     data = cur.fetchall()
     cur.close()
 
@@ -2154,8 +2218,12 @@ def delete_vault(item_id):
         flash("Vault item not found")
         return redirect(url_for("view_vault"))
     
-    if item["item_type"] == "file" and item["file_name"]:
-        file_path = os.path.join(app.config["UPLOAD_FOLDER"], item["file_name"])
+    if item["file_name"]:
+        file_path = os.path.join(
+            app.config["UPLOAD_FOLDER"],
+            item["file_name"]
+        )
+
         if os.path.exists(file_path):
             os.remove(file_path)
 
@@ -2421,13 +2489,28 @@ def activity():
     active_check = require_active_user()
     if active_check:
         return active_check
+
     if "user_id" not in session:
         return redirect(url_for("login"))
+
     cur = mysql.connection.cursor()
-    cur.execute("SELECT * FROM activity_logs WHERE user_id=%s", (session["user_id"],))
-    data = cur.fetchone()
+
+    # Get all activity for the logged-in user
+    cur.execute("""
+        SELECT event_type, event_time, description
+        FROM activity_history
+        WHERE user_id=%s
+        ORDER BY event_time DESC
+    """, (session["user_id"],))
+
+    activity_history = cur.fetchall()
+
     cur.close()
-    return render_template(r"activity.html", activity=data)
+
+    return render_template(
+        "activity.html",
+        activity_history=activity_history
+    )
 
 
 # ============================================================

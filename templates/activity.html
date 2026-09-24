@@ -1,9 +1,139 @@
 {% extends "base.html" %}
+
 {% block content %}
-<h3>Activity Monitoring</h3>
-{% if activity %}
-<p>Last active at: <strong>{{ activity.last_active_at }}</strong></p>
-{% else %}
-<p>No activity recorded yet.</p>
-{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+
+    <div>
+        <h3 class="mb-1">Activity Monitoring</h3>
+        <p class="text-muted mb-0">
+            View your recent DMS account activity.
+        </p>
+    </div>
+
+    <a href="{{ url_for('dashboard') }}"
+       class="btn btn-outline-secondary">
+        ← Back to Dashboard
+    </a>
+
+</div>
+
+
+<div class="card shadow-sm">
+
+    <div class="card-body">
+
+        <h5 class="mb-3">Activity History</h5>
+
+        {% if activity_history %}
+
+        <div class="table-responsive">
+
+            <table class="table table-bordered table-hover align-middle">
+
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Activity</th>
+                        <th>Date & Time</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for event in activity_history %}
+
+                    <tr>
+
+                        <td>{{ loop.index }}</td>
+
+                        <td>
+                            {% if event.event_type == 'LOGIN' %}
+                                <span class="badge bg-success">
+                                    LOGIN
+                                </span>
+
+                            {% elif event.event_type == 'VAULT_ITEM_ADDED' %}
+                                <span class="badge bg-primary">
+                                    VAULT ADDED
+                                </span>
+
+                            {% elif event.event_type == 'VAULT_ITEM_UPDATED' %}
+                                <span class="badge bg-info text-dark">
+                                    VAULT UPDATED
+                                </span>
+
+                            {% elif event.event_type == 'NOMINEE_ADDED' %}
+                                <span class="badge bg-primary">
+                                    NOMINEE ADDED
+                                </span>
+
+                            {% elif event.event_type == 'NOMINEE_UPDATED' %}
+                                <span class="badge bg-info text-dark">
+                                    NOMINEE UPDATED
+                                </span>
+
+                            {% elif event.event_type == 'ACCOUNT_RESTORED' %}
+                                <span class="badge bg-success">
+                                    ACCOUNT RESTORED
+                                </span>
+
+                            {% elif event.event_type == 'ACCOUNT_DELETION_REQUESTED' %}
+                                <span class="badge bg-warning text-dark">
+                                    DELETION REQUESTED
+                                </span>
+
+                            {% elif event.event_type == 'SUPPORT_QUERY_CREATED' %}
+                                <span class="badge bg-primary">
+                                    SUPPORT QUERY
+                                </span>
+
+                            {% elif event.event_type == 'RELEASE_TRIGGERED' %}
+                                <span class="badge bg-warning text-dark">
+                                    RELEASE TRIGGERED
+                                </span>
+
+                            {% elif event.event_type == 'RELEASE_CANCELLED' %}
+                                <span class="badge bg-danger">
+                                    RELEASE CANCELLED
+                                </span>
+
+                            {% else %}
+                                <span class="badge bg-secondary">
+                                    {{ event.event_type }}
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {{ event.event_time }}
+                        </td>
+
+                        <td>
+                            {{ event.description }}
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+        {% else %}
+
+        <div class="alert alert-info mb-0">
+            No activity recorded yet.
+        </div>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
 {% endblock %}
