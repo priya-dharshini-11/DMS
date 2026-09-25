@@ -1707,6 +1707,80 @@ def account():
         user=user
     )
 
+@app.route("/account/edit", methods=["GET", "POST"])
+def edit_account():
+
+    if "user_id" not in session:
+        return redirect(url_for("log"))
+
+    cur = mysql.connection.cursor()
+
+    cur.execute(
+        """
+        SELECT
+            id,
+            name,
+            email,
+            is_verified,
+            account_status
+        FROM users
+        WHERE id=%s AND role='user'
+        """,
+        (session["user_id"],)
+    )
+
+    user = cur.fetchone()
+
+    if not user:
+        cur.close()
+        session.clear()
+        return redirect(url_for("log"))
+
+    if request.method == "POST":
+
+        name = request.form.get("name", "").strip()
+
+        if not name:
+            cur.close()
+            flash("Name cannot be empty.")
+            return redirect(url_for("edit_account"))
+
+        if len(name) > 100:
+            cur.close()
+            flash("Name is too long.")
+            return redirect(url_for("edit_account"))
+
+        cur.execute(
+            """
+            UPDATE users
+            SET name=%s
+            WHERE id=%s AND role='user'
+            """,
+            (name, session["user_id"])
+        )
+
+        cur.execute(
+            """
+            INSERT INTO activity_history
+                (user_id, event_type, description)
+            VALUES
+                (%s, 'ACCOUNT_UPDATED', 'Account details updated')
+            """,
+            (session["user_id"],)
+        )
+
+        mysql.connection.commit()
+        cur.close()
+
+        flash("Account details updated successfully.")
+        return redirect(url_for("account"))
+
+    cur.close()
+
+    return render_template(
+        "edit_account.html",
+        user=user
+    )
 
 @app.route("/account/restore", methods=["POST"])
 def restore_account():
