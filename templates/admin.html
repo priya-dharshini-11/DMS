@@ -2,35 +2,89 @@
 {% block title %}Admin Dashboard{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
+
+<!-- Admin Header -->
+<div class="dms-admin-header mb-4">
+
+  <div class="dms-page-title">
     <h2 class="mb-1">Admin Dashboard</h2>
     <p class="text-muted mb-0">Welcome, {{ admin_name }}</p>
   </div>
-  <a href="{{ url_for('admin_users') }}" class="btn btn-dark">
-  👥 Manage Users
-  </a>
-  <a href="{{ url_for('admin_monitoring') }}" class="btn btn-outline-dark">
-     DMS Monitoring
-  </a>
 
-  <a href="{{ url_for('admin_releases') }}" class="btn btn-outline-dark">
-    Release Monitoring
-  </a>
+  <!-- Admin Actions -->
+  <div class="dropdown">
 
-  <a href="{{ url_for('admin_activity') }}" class="btn btn-outline-dark">
-    Activity
-  </a>
+    <button
+      class="btn dms-admin-menu-button"
+      type="button"
+      data-bs-toggle="dropdown"
+      aria-expanded="false"
+      aria-label="Open admin actions">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
 
-  <a href="{{ url_for('admin_support') }}"
-   class="btn btn-outline-dark">
-    🆘 Support Queries
-  </a>
+    <div class="dropdown-menu dropdown-menu-end dms-admin-menu">
+
+      <a href="{{ url_for('admin_users') }}"
+         class="dropdown-item dms-admin-menu-item">
+        <span class="dms-admin-menu-icon">U</span>
+        <span>
+          <strong>Manage Users</strong>
+          <small>User accounts and controls</small>
+        </span>
+      </a>
+
+      <a href="{{ url_for('admin_monitoring') }}"
+         class="dropdown-item dms-admin-menu-item">
+        <span class="dms-admin-menu-icon">M</span>
+        <span>
+          <strong>DMS Monitoring</strong>
+          <small>Monitor user DMS status</small>
+        </span>
+      </a>
+
+      <a href="{{ url_for('admin_releases') }}"
+         class="dropdown-item dms-admin-menu-item">
+        <span class="dms-admin-menu-icon">R</span>
+        <span>
+          <strong>Release Monitoring</strong>
+          <small>Track release activity</small>
+        </span>
+      </a>
+
+      <a href="{{ url_for('admin_activity') }}"
+         class="dropdown-item dms-admin-menu-item">
+        <span class="dms-admin-menu-icon">A</span>
+        <span>
+          <strong>Activity</strong>
+          <small>Review system activity</small>
+        </span>
+      </a>
+
+      <div class="dms-admin-menu-divider"></div>
+
+      <a href="{{ url_for('admin_support') }}"
+         class="dropdown-item dms-admin-menu-item">
+        <span class="dms-admin-menu-icon">S</span>
+        <span>
+          <strong>Support Queries</strong>
+          <small>Manage user support requests</small>
+        </span>
+      </a>
+
+    </div>
+  </div>
+
 </div>
 
+
+<!-- Dashboard Statistics -->
 <div class="row g-3 mb-4">
+
   <div class="col-md-4">
-    <div class="card shadow-sm border-0">
+    <div class="card dms-stat-card h-100">
       <div class="card-body">
         <h6 class="text-muted">Total Users</h6>
         <h2 class="mb-0">{{ total_users }}</h2>
@@ -39,7 +93,7 @@
   </div>
 
   <div class="col-md-4">
-    <div class="card shadow-sm border-0">
+    <div class="card dms-stat-card h-100">
       <div class="card-body">
         <h6 class="text-muted">Active Users</h6>
         <h2 class="mb-0">{{ active_users }}</h2>
@@ -49,7 +103,7 @@
   </div>
 
   <div class="col-md-4">
-    <div class="card shadow-sm border-0">
+    <div class="card dms-stat-card h-100">
       <div class="card-body">
         <h6 class="text-muted">Verified Users</h6>
         <h2 class="mb-0">{{ verified_users }}</h2>
@@ -58,7 +112,7 @@
   </div>
 
   <div class="col-md-4">
-    <div class="card shadow-sm border-0">
+    <div class="card dms-stat-card h-100">
       <div class="card-body">
         <h6 class="text-muted">Total Admins</h6>
         <h2 class="mb-0">{{ total_admins }}</h2>
@@ -67,7 +121,7 @@
   </div>
 
   <div class="col-md-4">
-    <div class="card shadow-sm border-0">
+    <div class="card dms-stat-card h-100">
       <div class="card-body">
         <h6 class="text-muted">Total Vault Items</h6>
         <h2 class="mb-0">{{ total_vault_items }}</h2>
@@ -76,23 +130,32 @@
   </div>
 
   <div class="col-md-4">
-    <div class="card shadow-sm border-0">
+    <div class="card dms-stat-card h-100">
       <div class="card-body">
         <h6 class="text-muted">Total Releases</h6>
         <h2 class="mb-0">{{ total_releases }}</h2>
       </div>
     </div>
   </div>
+
 </div>
 
-<div class="card shadow-sm border-0">
-  <div class="card-header bg-dark text-white">
+
+<!-- User Summary -->
+<div class="card dms-admin-summary-card">
+
+  <div class="card-header dms-admin-summary-header">
     <h5 class="mb-0">User Summary</h5>
+    <small>System overview</small>
   </div>
+
   <div class="card-body">
+
     <div class="table-responsive">
-      <table class="table table-bordered align-middle mb-0">
-        <thead class="table-light">
+
+      <table class="table align-middle mb-0 table-hover table-striped dms-admin-table">
+
+        <thead>
           <tr>
             <th>User ID</th>
             <th>Name</th>
@@ -103,9 +166,13 @@
             <th>Nominees</th>
           </tr>
         </thead>
+
         <tbody>
+
           {% if user_stats %}
+
             {% for row in user_stats %}
+
             <tr>
               <td>{{ row.id }}</td>
               <td>{{ row.name }}</td>
@@ -115,15 +182,28 @@
               <td>{{ row.vault_count }}</td>
               <td>{{ row.nominee_count }}</td>
             </tr>
+
             {% endfor %}
+
           {% else %}
+
             <tr>
-              <td colspan="7" class="text-center text-muted">No user data available</td>
+              <td colspan="7"
+                  class="text-center text-muted py-4">
+                No user data available
+              </td>
             </tr>
+
           {% endif %}
+
         </tbody>
+
       </table>
+
     </div>
+
   </div>
+
 </div>
+
 {% endblock %}

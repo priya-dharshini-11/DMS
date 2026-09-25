@@ -495,3 +495,330 @@ body {
     }
 
 }
+/* ---------------------------------------------------------
+   NOMINEE MANAGEMENT
+   --------------------------------------------------------- */
+
+.dms-form-card {
+    /* max-width: 520px; */
+    width: 100%;
+}
+
+
+/* Desktop actions */
+
+.dms-nominee-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.dms-nominee-actions form {
+    margin: 0;
+}
+
+
+/* Keep long email addresses from destroying layout */
+
+.dms-nominee-table td {
+    overflow-wrap: anywhere;
+}
+
+
+/* ---------------------------------------------------------
+   MOBILE NOMINEE CARDS
+   --------------------------------------------------------- */
+
+@media (max-width: 576px) {
+
+    .dms-nominee-table {
+        border: 0;
+    }
+
+    .dms-nominee-table thead {
+        display: none;
+    }
+
+    .dms-nominee-table,
+    .dms-nominee-table tbody,
+    .dms-nominee-table tr,
+    .dms-nominee-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .dms-nominee-table tr {
+        margin-bottom: 16px;
+
+        padding: 14px;
+
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        border-radius: 16px;
+
+        background: rgba(255, 255, 255, 0.88);
+
+        box-shadow:
+            0 8px 24px rgba(31, 41, 55, 0.10);
+    }
+
+    .dms-nominee-table td {
+        display: flex;
+        align-items: flex-start;
+
+        gap: 12px;
+
+        padding: 8px 0;
+
+        border: 0;
+
+        overflow-wrap: anywhere;
+    }
+
+    .dms-nominee-table td::before {
+        content: attr(data-label);
+
+        flex: 0 0 72px;
+
+        font-weight: 600;
+
+        color: #4b5563;
+    }
+
+    .dms-nominee-table td[data-label="Action"] {
+        display: block;
+
+        padding-top: 12px;
+
+        margin-top: 4px;
+
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .dms-nominee-table td[data-label="Action"]::before {
+        display: none;
+    }
+
+    .dms-nominee-actions {
+        display: flex;
+
+        gap: 8px;
+
+        width: 100%;
+    }
+
+    .dms-nominee-actions .btn {
+        flex: 1;
+    }
+
+}
+
+/* ---------------------------------------------------------
+   ADMIN DASHBOARD
+   --------------------------------------------------------- */
+
+.dms-admin-menu-button {
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow: 0 6px 18px rgba(31, 41, 55, 0.08);
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    transition: all 0.2s ease;
+}
+
+.dms-admin-menu-button span {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #374151;
+}
+
+.dms-admin-menu-button:hover,
+.dms-admin-menu-button:focus {
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 9px 22px rgba(31, 41, 55, 0.12);
+}
+
+.dms-admin-menu {
+    min-width: 280px;
+    padding: 8px;
+    margin-top: 8px !important;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 18px 45px rgba(31, 41, 55, 0.15);
+}
+
+.dms-admin-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 12px;
+    color: #1f2937;
+    white-space: normal;
+    transition: all 0.18s ease;
+}
+
+.dms-admin-menu-item:hover,
+.dms-admin-menu-item:focus {
+    background: rgba(99, 102, 241, 0.08);
+    color: #111827;
+    transform: translateX(2px);
+}
+
+.dms-admin-menu-item > span:last-child {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.dms-admin-menu-item strong {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.dms-admin-menu-item small {
+    font-size: 0.74rem;
+    color: #6b7280;
+}
+
+.dms-admin-menu-icon {
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--dms-primary);
+    background: rgba(99, 102, 241, 0.10);
+}
+
+.dms-admin-menu-divider {
+    height: 1px;
+    margin: 6px 8px;
+    background: rgba(107, 114, 128, 0.14);
+}
+
+
+/* ---------------------------------------------------------
+   ADMIN HEADER
+   --------------------------------------------------------- */
+
+.dms-admin-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.dms-admin-header .dropdown {
+    flex: 0 0 auto;
+}
+
+
+/* ---------------------------------------------------------
+   STATISTICS
+   --------------------------------------------------------- */
+
+.dms-stat-card {
+    border: 0;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.78);
+    box-shadow: 0 8px 28px rgba(31, 41, 55, 0.08);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dms-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(31, 41, 55, 0.11);
+}
+
+
+/* ---------------------------------------------------------
+   USER SUMMARY
+   --------------------------------------------------------- */
+
+.dms-admin-summary-card {
+    border: 0;
+    border-radius: 20px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.80);
+    box-shadow: 0 10px 32px rgba(31, 41, 55, 0.09);
+}
+
+.dms-admin-summary-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 20px;
+    border: 0;
+    background: rgba(255, 255, 255, 0.55);
+    color: #1f2937;
+}
+
+.dms-admin-summary-header small {
+    color: #6b7280;
+}
+
+.dms-admin-table thead th {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #6b7280;
+    border-bottom-width: 1px;
+}
+
+.dms-admin-table tbody td {
+    padding-top: 13px;
+    padding-bottom: 13px;
+    border-color: rgba(107, 114, 128, 0.12);
+}
+
+
+/* ---------------------------------------------------------
+   MOBILE ADMIN DASHBOARD
+   --------------------------------------------------------- */
+
+@media (max-width: 576px) {
+
+    .dms-admin-header {
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .dms-admin-header .dms-admin-menu-button {
+        margin-top: 2px;
+    }
+
+    .dms-admin-menu {
+        width: min(280px, calc(100vw - 32px));
+        min-width: 0;
+    }
+
+    .dms-admin-summary-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .dms-stat-card .card-body {
+        padding: 18px;
+    }
+
+}
