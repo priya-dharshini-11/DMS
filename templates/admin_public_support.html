@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2>Public Support Queries</h2>
+
+            <p class="text-muted mb-0">
+                Support requests submitted by visitors without an account.
+            </p>
+        </div>
+
+        <a
+            href="{{ url_for('admin_support') }}"
+            class="btn btn-outline-secondary"
+        >
+            ← Support Center
+        </a>
+
+    </div>
+
+
+    <div class="card shadow-sm border-0">
+
+        <div class="card-header">
+
+            <h5 class="mb-0">
+                Public Queries
+            </h5>
+
+        </div>
+
+        <div class="card-body p-0">
+
+            {% if public_queries %}
+
+                <div class="table-responsive">
+
+                    <table class="table table-hover mb-0">
+
+                        <thead>
+
+                            <tr>
+                                <th>ID</th>
+                                <th>Visitor</th>
+                                <th>Subject</th>
+                                <th>Category</th>
+                                <th>Status</th>
+                                <th>Updated</th>
+                                <th>Action</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            {% for query in public_queries %}
+
+                                <tr>
+
+                                    <td>
+                                        #{{ query.id }}
+                                    </td>
+
+                                    <td>
+                                        <strong>
+                                            {{ query.name }}
+                                        </strong>
+                                        <br>
+
+                                        <small class="text-muted">
+                                            {{ query.email }}
+                                        </small>
+                                    </td>
+
+                                    <td>
+                                        {{ query.subject }}
+                                    </td>
+
+                                    <td>
+                                        {{ query.category }}
+                                    </td>
+
+                                    <td>
+
+                                        {% if query.status == 'OPEN' %}
+
+                                            <span class="badge bg-primary">
+                                                OPEN
+                                            </span>
+
+                                        {% elif query.status == 'IN_PROGRESS' %}
+
+                                            <span class="badge bg-warning text-dark">
+                                                IN PROGRESS
+                                            </span>
+
+                                        {% elif query.status == 'RESOLVED' %}
+
+                                            <span class="badge bg-success">
+                                                RESOLVED
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+                                    <td>
+                                        {{ query.updated_at }}
+                                    </td>
+
+                                    <td>
+
+                                        <a
+                                            href="{{ url_for(
+                                                'admin_public_support_details',
+                                                query_id=query.id
+                                            ) }}"
+                                            class="btn btn-sm btn-outline-primary"
+                                        >
+                                            Open
+                                        </a>
+
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            {% else %}
+
+                <div class="p-4 text-center text-muted">
+
+                    No public support queries.
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+
+{% block title %}Help & Support{% endblock %}
+
+{% block content %}
+
+<div class="text-center mb-5">
+
+    <h2 class="fw-bold">
+        Help & Support
+    </h2>
+
+    <p class="text-muted">
+        Find answers, understand how DMS works, or get help with your account.
+    </p>
+
+</div>
+
+
+<div class="row g-4 mb-5">
+
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h5>❓ Frequently Asked Questions</h5>
+
+                <p class="text-muted">
+                    Find quick answers to common questions about Dead Man's Switch.
+                </p>
+
+                <a href="#faq" class="btn btn-outline-dark">
+                    View FAQs
+                </a>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h5>⚙️ How DMS Works</h5>
+
+                <p class="text-muted">
+                    Understand the complete Dead Man's Switch process.
+                </p>
+
+                <a href="#how-dms-works" class="btn btn-outline-dark">
+                    Learn More
+                </a>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h5>🆘 Contact Support</h5>
+
+                <p class="text-muted">
+                    Can't find what you're looking for?
+                </p>
+
+                <a href="#contact-support" class="btn btn-dark">
+                    Get Help
+                </a>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
+<!-- HOW DMS WORKS -->
+
+<div id="how-dms-works" class="mb-5">
+
+    <h4 class="mb-3">
+        How Dead Man's Switch Works
+    </h4>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+
+            <div class="row text-center g-3">
+
+                <div class="col-md">
+                    <strong>1</strong>
+                    <p class="mb-0">Create Account</p>
+                </div>
+
+                <div class="col-md">
+                    <strong>2</strong>
+                    <p class="mb-0">Verify Email</p>
+                </div>
+
+                <div class="col-md">
+                    <strong>3</strong>
+                    <p class="mb-0">Add Vault Items</p>
+                </div>
+
+                <div class="col-md">
+                    <strong>4</strong>
+                    <p class="mb-0">Add Nominee</p>
+                </div>
+
+                <div class="col-md">
+                    <strong>5</strong>
+                    <p class="mb-0">Regular Check-ins</p>
+                </div>
+
+                <div class="col-md">
+                    <strong>6</strong>
+                    <p class="mb-0">DMS Trigger</p>
+                </div>
+
+                <div class="col-md">
+                    <strong>7</strong>
+                    <p class="mb-0">Secure Release</p>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+
+<!-- FAQ -->
+
+<div id="faq" class="mb-5">
+
+    <h4 class="mb-3">
+        Frequently Asked Questions
+    </h4>
+
+
+    <div class="accordion" id="faqAccordion">
+
+
+        <div class="accordion-item">
+
+            <h2 class="accordion-header">
+
+                <button
+                    class="accordion-button"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#faqOne"
+                >
+                    What is a Dead Man's Switch?
+                </button>
+
+            </h2>
+
+            <div
+                id="faqOne"
+                class="accordion-collapse collapse show"
+                data-bs-parent="#faqAccordion"
+            >
+
+                <div class="accordion-body">
+                    A Dead Man's Switch is a system that performs a predefined
+                    action when a user remains inactive for a configured period.
+                    In DMS Vault, selected vault information can be released
+                    to nominated recipients when the switch is triggered.
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="accordion-item">
+
+            <h2 class="accordion-header">
+
+                <button
+                    class="accordion-button collapsed"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#faqTwo"
+                >
+                    What information can I store?
+                </button>
+
+            </h2>
+
+            <div
+                id="faqTwo"
+                class="accordion-collapse collapse"
+                data-bs-parent="#faqAccordion"
+            >
+
+                <div class="accordion-body">
+                    You can store text, files, or both together in a vault item.
+                    A vault item must contain at least text or a file.
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="accordion-item">
+
+            <h2 class="accordion-header">
+
+                <button
+                    class="accordion-button collapsed"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#faqThree"
+                >
+                    Can I choose what gets released?
+                </button>
+
+            </h2>
+
+            <div
+                id="faqThree"
+                class="accordion-collapse collapse"
+                data-bs-parent="#faqAccordion"
+            >
+
+                <div class="accordion-body">
+                    Yes. Each vault item can be individually selected for
+                    release when the Dead Man's Switch is triggered.
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="accordion-item">
+
+            <h2 class="accordion-header">
+
+                <button
+                    class="accordion-button collapsed"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#faqFour"
+                >
+                    Who receives released information?
+                </button>
+
+            </h2>
+
+            <div
+                id="faqFour"
+                class="accordion-collapse collapse"
+                data-bs-parent="#faqAccordion"
+            >
+
+                <div class="accordion-body">
+                    Released information is sent to the nominee configured
+                    by the user.
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="accordion-item">
+
+            <h2 class="accordion-header">
+
+                <button
+                    class="accordion-button collapsed"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#faqFive"
+                >
+                    Can I edit my vault items later?
+                </button>
+
+            </h2>
+
+            <div
+                id="faqFive"
+                class="accordion-collapse collapse"
+                data-bs-parent="#faqAccordion"
+            >
+
+                <div class="accordion-body">
+                    Yes. Existing vault items can be edited. Text can be added
+                    to file-only items, files can be added to text-only items,
+                    and existing files can be replaced.
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="accordion-item">
+
+            <h2 class="accordion-header">
+
+                <button
+                    class="accordion-button collapsed"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#faqSix"
+                >
+                    What happens if I request account deletion?
+                </button>
+
+            </h2>
+
+            <div
+                id="faqSix"
+                class="accordion-collapse collapse"
+                data-bs-parent="#faqAccordion"
+            >
+
+                <div class="accordion-body">
+                    Account deletion enters a recovery period rather than
+                    deleting the account immediately. The account can be
+                    restored during this period.
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="accordion-item">
+
+            <h2 class="accordion-header">
+
+                <button
+                    class="accordion-button collapsed"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#faqSeven"
+                >
+                    What if I forget my password?
+                </button>
+
+            </h2>
+
+            <div
+                id="faqSeven"
+                class="accordion-collapse collapse"
+                data-bs-parent="#faqAccordion"
+            >
+
+                <div class="accordion-body">
+                    Use the Forgot Password option on the login page to
+                    request a secure password reset link.
+                </div>
+
+            </div>
+
+        </div>
+
+
+    </div>
+
+</div>
+
+
+<!-- CONTACT SUPPORT -->
+
+<div id="contact-support" class="card shadow-sm mb-4">
+
+    <div class="card-body text-center">
+
+        <h4>
+            Still Need Help?
+        </h4>
+
+        <p class="text-muted">
+            If you cannot find the answer you're looking for,
+            you can contact DMS support.
+        </p>
+
+       <a
+        href="{{ url_for('public_support_contact') }}"
+        class="btn btn-dark"
+        >
+            Contact Support
+        </a>
+
+    </div>
+
+</div>
+
+
+<div class="text-center">
+
+    <a
+        href="{{ url_for('index') }}"
+        class="btn btn-outline-secondary"
+    >
+        ← Back to Home
+    </a>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+
+            <h2>
+                Public Query #{{ query.id }}
+            </h2>
+
+            <p class="text-muted mb-0">
+                Submitted by {{ query.name }}
+                · {{ query.email }}
+            </p>
+
+        </div>
+
+        <a
+            href="{{ url_for('admin_public_support') }}"
+            class="btn btn-outline-secondary"
+        >
+            ← Public Queries
+        </a>
+
+    </div>
+
+
+    <!-- VISITOR INFORMATION -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-header">
+            <strong>Visitor Information</strong>
+        </div>
+
+        <div class="card-body">
+
+            <p class="mb-1">
+                <strong>Name:</strong>
+                {{ query.name }}
+            </p>
+
+            <p class="mb-0">
+                <strong>Email:</strong>
+                {{ query.email }}
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- ORIGINAL QUERY -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-header">
+
+            <div class="d-flex justify-content-between">
+
+                <strong>
+                    {{ query.subject }}
+                </strong>
+
+                <span class="badge bg-secondary">
+                    {{ query.category }}
+                </span>
+
+            </div>
+
+        </div>
+
+        <div class="card-body">
+
+            <div class="border rounded p-3 bg-light">
+
+                {{ query.message | e | replace('\n', '<br>') | safe }}
+
+            </div>
+
+            <div class="text-muted small mt-3">
+
+                Created: {{ query.created_at }}
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- REPLY -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-header">
+
+            <strong>
+                Send Response
+            </strong>
+
+        </div>
+
+        <div class="card-body">
+
+            <div class="alert alert-info">
+
+                The response will be sent to:
+
+                <strong>
+                    {{ query.email }}
+                </strong>
+
+            </div>
+
+
+            <form
+                method="POST"
+                action="{{ url_for(
+                    'admin_reply_public_support',
+                    query_id=query.id
+                ) }}"
+            >
+
+                <div class="mb-3">
+
+                    <label class="form-label">
+                        Status
+                    </label>
+
+                    <select
+                        name="status"
+                        class="form-select"
+                        required
+                    >
+
+                        <option
+                            value="OPEN"
+                            {% if query.status == 'OPEN' %}selected{% endif %}
+                        >
+                            OPEN
+                        </option>
+
+                        <option
+                            value="IN_PROGRESS"
+                            {% if query.status == 'IN_PROGRESS' %}selected{% endif %}
+                        >
+                            IN PROGRESS
+                        </option>
+
+                        <option
+                            value="RESOLVED"
+                            {% if query.status == 'RESOLVED' %}selected{% endif %}
+                        >
+                            RESOLVED
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="mb-3">
+
+                    <label class="form-label">
+                        Response
+                    </label>
+
+                    <textarea
+                        name="admin_reply"
+                        class="form-control"
+                        rows="8"
+                        placeholder="Write your response..."
+                        required
+                    >{{ query.admin_reply or '' }}</textarea>
+
+                </div>
+
+
+                <button
+                    type="submit"
+                    class="btn btn-primary"
+                >
+                    ✉ Send Reply
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    {% if query.admin_reply %}
+
+        <div class="card shadow-sm border-0">
+
+            <div class="card-header">
+                <strong>Previous Response</strong>
+            </div>
+
+            <div class="card-body">
+
+                <div class="border rounded p-3 bg-light">
+
+                    {{ query.admin_reply | e | replace('\n', '<br>') | safe }}
+
+                </div>
+
+                <div class="text-muted small mt-3">
+
+                    Last updated:
+                    {{ query.updated_at }}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}

@@ -138,3 +138,21 @@ CREATE TABLE password_reset_tokens (
         REFERENCES users(id)
         ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS public_support_queries (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(120) NOT NULL,
+    subject VARCHAR(150) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    message TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'OPEN',
+    admin_reply TEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_public_support_email (email),
+    INDEX idx_public_support_status (status),
+    INDEX idx_public_support_created (created_at)
+);

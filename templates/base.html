@@ -38,6 +38,12 @@
           </li>
           {% endif %}
 
+          <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('help_center') }}">
+                  Help & Support
+              </a>
+          </li>
+
           {% if not session.get('role') %}
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('log') }}">Login</a>

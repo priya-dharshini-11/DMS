@@ -387,10 +387,140 @@ def permanently_delete_due_accounts():
     finally:
         cur.close()
 
+def permanently_delete_unverified_users():
+    """
+    Permanently delete user accounts that remain unverified
+    for 72 hours after registration.
+    """
+
+    cur = mysql.connection.cursor()
+
+    try:
+        cur.execute("""
+            SELECT
+                id,
+                name,
+                email,
+                created_at
+            FROM users
+            WHERE role='user'
+              AND is_verified=0
+              AND account_status='ACTIVE'
+              AND created_at <= NOW() - INTERVAL 3 DAY
+        """)
+
+        users = cur.fetchall()
+
+        for user in users:
+            user_id = user["id"]
+
+            # Preserve a minimal audit record.
+            cur.execute("""
+                INSERT INTO account_deletion_audit
+                    (
+                        user_id,
+                        user_name,
+                        user_email,
+                        event_type,
+                        event_time,
+                        description
+                    )
+                VALUES
+                    (
+                        %s,
+                        %s,
+                        %s,
+                        'UNVERIFIED_ACCOUNT_DELETED',
+                        NOW(),
+                        'Unverified account permanently deleted after the 3-day verification period.'
+                    )
+            """, (
+                user["id"],
+                user["name"],
+                user["email"]
+            ))
+
+            # Find releases belonging to this user.
+            cur.execute("""
+                SELECT id
+                FROM releases
+                WHERE user_id=%s
+            """, (user_id,))
+
+            releases = cur.fetchall()
+            release_ids = [row["id"] for row in releases]
+
+            # Deliveries reference releases.
+            for release_id in release_ids:
+                cur.execute("""
+                    DELETE FROM release_deliveries
+                    WHERE release_id=%s
+                """, (release_id,))
+
+            # Release records.
+            cur.execute("""
+                DELETE FROM releases
+                WHERE user_id=%s
+            """, (user_id,))
+
+            # Direct user-owned records.
+            cur.execute("""
+                DELETE FROM activity_logs
+                WHERE user_id=%s
+            """, (user_id,))
+
+            cur.execute("""
+                DELETE FROM vault_data
+                WHERE user_id=%s
+            """, (user_id,))
+
+            cur.execute("""
+                DELETE FROM nominees
+                WHERE user_id=%s
+            """, (user_id,))
+
+            cur.execute("""
+                DELETE FROM activity_history
+                WHERE user_id=%s
+            """, (user_id,))
+
+            cur.execute("""
+                DELETE FROM email_verification_tokens
+                WHERE user_id=%s
+            """, (user_id,))
+
+            cur.execute("""
+                DELETE FROM password_reset_tokens
+                WHERE user_id=%s
+            """, (user_id,))
+
+            # Finally remove the unverified account.
+            cur.execute("""
+                DELETE FROM users
+                WHERE id=%s
+                  AND is_verified=0
+                  AND account_status='ACTIVE'
+            """, (user_id,))
+
+        mysql.connection.commit()
+
+        if users:
+            print(
+                f"Unverified-account cleanup removed "
+                f"{len(users)} account(s)."
+            )
+
+    except Exception:
+        mysql.connection.rollback()
+        raise
+
+    finally:
+        cur.close()
 
 def run_permanent_deletion_job():
     with app.app_context():
         permanently_delete_due_accounts()
+        permanently_delete_unverified_users()
 
 
 def send_checkin_reminders():
@@ -1159,7 +1289,7 @@ Please verify your email address by clicking the link below:
 
 {verification_link}
 
-This verification link does not expire.
+This verification link is valid for 3 days.
 
 If you did not create this account, you can ignore this email.
 
@@ -1184,10 +1314,14 @@ def verify_email(token):
 
     cur.execute(
         """
-        SELECT id, user_id
+        SELECT
+        id,
+        user_id,
+        created_at
         FROM email_verification_tokens
         WHERE token_hash=%s
-          AND used_at IS NULL
+        AND used_at IS NULL
+        AND created_at > NOW() - INTERVAL 3 DAY
         """,
         (token_hash,)
     )
@@ -1674,6 +1808,105 @@ def alogin():
 def logout():
     session.clear()
     return redirect(url_for("index"))
+
+@app.route("/help")
+def help_center():
+    return render_template("help.html")
+
+@app.route("/help/contact", methods=["GET", "POST"])
+def public_support_contact():
+
+    if request.method == "POST":
+
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        subject = request.form.get("subject", "").strip()
+        category = request.form.get("category", "").strip().upper()
+        message = request.form.get("message", "").strip()
+
+        template_data = {
+            "support_categories": SUPPORT_CATEGORIES
+        }
+
+        if not name:
+            flash("Please enter your name.")
+            return render_template("public_support.html", **template_data)
+
+        if len(name) > 100:
+            flash("Name must not exceed 100 characters.")
+            return render_template("public_support.html", **template_data)
+
+        if not is_valid_nominee_email(email):
+            flash("Please enter a valid email address.")
+            return render_template("public_support.html", **template_data)
+
+        if not subject:
+            flash("Please enter a subject.")
+            return render_template("public_support.html", **template_data)
+
+        if len(subject) > 150:
+            flash("Subject must not exceed 150 characters.")
+            return render_template("public_support.html", **template_data)
+
+        if category not in SUPPORT_CATEGORIES:
+            flash("Please select a valid support category.")
+            return render_template("public_support.html", **template_data)
+
+        if not message:
+            flash("Please enter your message.")
+            return render_template("public_support.html", **template_data)
+
+        cur = mysql.connection.cursor()
+
+        try:
+
+            cur.execute("""
+                INSERT INTO public_support_queries
+                    (
+                        name,
+                        email,
+                        subject,
+                        category,
+                        message
+                    )
+                VALUES
+                    (
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s
+                    )
+            """, (
+                name,
+                email,
+                subject,
+                category,
+                message
+            ))
+
+            mysql.connection.commit()
+
+            flash(
+                "Your support query has been submitted. "
+                "We will respond to the email address you provided."
+            )
+
+        except Exception:
+
+            mysql.connection.rollback()
+            raise
+
+        finally:
+
+            cur.close()
+
+        return redirect(url_for("help_center"))
+
+    return render_template(
+        "public_support.html",
+        support_categories=SUPPORT_CATEGORIES
+    )
 
 @app.route("/account")
 def account():
@@ -3388,6 +3621,234 @@ def admin_users():
         admin_name=session.get("admin_name")
     )
 
+# ============================================================
+# ADMIN PUBLIC SUPPORT ROUTES
+# ============================================================
+
+@app.route("/admin-public-support")
+def admin_public_support():
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    cur = mysql.connection.cursor()
+
+    cur.execute("""
+        SELECT
+            id,
+            name,
+            email,
+            subject,
+            category,
+            status,
+            created_at,
+            updated_at
+        FROM public_support_queries
+        ORDER BY updated_at DESC
+    """)
+
+    public_queries = cur.fetchall()
+
+    cur.close()
+
+    return render_template(
+        "admin_public_support.html",
+        public_queries=public_queries,
+        admin_name=session.get("admin_name")
+    )
+
+
+@app.route("/admin-public-support/<int:query_id>")
+def admin_public_support_details(query_id):
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    cur = mysql.connection.cursor()
+
+    cur.execute("""
+        SELECT
+            id,
+            name,
+            email,
+            subject,
+            category,
+            message,
+            status,
+            admin_reply,
+            created_at,
+            updated_at
+        FROM public_support_queries
+        WHERE id=%s
+    """, (query_id,))
+
+    query = cur.fetchone()
+
+    cur.close()
+
+    if not query:
+        flash("Public support query not found.")
+        return redirect(url_for("admin_public_support"))
+
+    return render_template(
+        "admin_public_support_query.html",
+        query=query,
+        admin_name=session.get("admin_name")
+    )
+
+
+@app.route(
+    "/admin-public-support/<int:query_id>/reply",
+    methods=["POST"]
+)
+def admin_reply_public_support(query_id):
+
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    status = request.form.get("status", "").strip().upper()
+    admin_reply = request.form.get("admin_reply", "").strip()
+
+    if status not in SUPPORT_STATUSES:
+        flash("Invalid support status.")
+        return redirect(
+            url_for(
+                "admin_public_support_details",
+                query_id=query_id
+            )
+        )
+
+    if not admin_reply:
+        flash("Please write a reply before sending.")
+        return redirect(
+            url_for(
+                "admin_public_support_details",
+                query_id=query_id
+            )
+        )
+
+    cur = mysql.connection.cursor()
+
+    try:
+
+        cur.execute("""
+            SELECT
+                id,
+                name,
+                email,
+                subject,
+                category,
+                message,
+                status
+            FROM public_support_queries
+            WHERE id=%s
+            FOR UPDATE
+        """, (query_id,))
+
+        query = cur.fetchone()
+
+        if not query:
+            cur.close()
+            flash("Public support query not found.")
+            return redirect(url_for("admin_public_support"))
+
+        email_body = f"""
+        <html>
+        <body>
+
+            <h2>DMS Support — Response to Query #{query_id}</h2>
+
+            <p>Hello {query["name"]},</p>
+
+            <p>
+                Thank you for contacting DMS Support.
+                Our administrator has responded to your query.
+            </p>
+
+            <hr>
+
+            <p>
+                <strong>Subject:</strong>
+                {query["subject"]}
+            </p>
+
+            <p>
+                <strong>Your Query:</strong>
+            </p>
+
+            <div>
+                {query["message"].replace(chr(10), "<br>")}
+            </div>
+
+            <hr>
+
+            <p>
+                <strong>DMS Support Response:</strong>
+            </p>
+
+            <div>
+                {admin_reply.replace(chr(10), "<br>")}
+            </div>
+
+            <p>
+                <strong>Status:</strong> {status}
+            </p>
+
+            <hr>
+
+            <p>
+                Regards,<br>
+                DMS Support Team
+            </p>
+
+        </body>
+        </html>
+        """
+
+        send_email(
+            query["email"],
+            f"DMS Support — Response to Query #{query_id}",
+            email_body
+        )
+
+        cur.execute("""
+            UPDATE public_support_queries
+            SET
+                status=%s,
+                admin_reply=%s
+            WHERE id=%s
+        """, (
+            status,
+            admin_reply,
+            query_id
+        ))
+
+        mysql.connection.commit()
+
+        flash(
+            f"Reply sent successfully to {query['email']}."
+        )
+
+    except Exception:
+
+        mysql.connection.rollback()
+
+        flash(
+            "Unable to send the reply. "
+            "The query was not updated."
+        )
+
+    finally:
+        cur.close()
+
+    return redirect(
+        url_for(
+            "admin_public_support_details",
+            query_id=query_id
+        )
+    )
+
 @app.route("/admin-user/<int:user_id>/force-checkin", methods=["POST"])
 def admin_force_checkin(user_id):
     admin_check = require_admin()
@@ -3731,7 +4192,7 @@ Please verify your email address by clicking the link below:
 
 {verification_link}
 
-This verification link does not expire.
+This verification link is valid for 3 days.
 
 If you did not request this email, you can ignore it.
 

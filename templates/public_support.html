@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}
+Contact Support
+{% endblock %}
+
+{% block content %}
+
+<div class="container py-5">
+
+    <div class="row justify-content-center">
+
+        <div class="col-lg-8">
+
+            <div class="text-center mb-4">
+
+                <h2>
+                    🆘 Contact DMS Support
+                </h2>
+
+                <p class="text-muted">
+                    Have a question or need help?
+                    Send us a message and we'll get back to you by email.
+                </p>
+
+            </div>
+
+
+            <div class="card shadow-sm">
+
+                <div class="card-body p-4">
+
+                    <form method="POST">
+
+                        <div class="mb-3">
+
+                            <label class="form-label">
+                                Name
+                            </label>
+
+                            <input
+                                type="text"
+                                name="name"
+                                class="form-control"
+                                maxlength="100"
+                                required
+                            >
+
+                        </div>
+
+
+                        <div class="mb-3">
+
+                            <label class="form-label">
+                                Email Address
+                            </label>
+
+                            <input
+                                type="email"
+                                name="email"
+                                class="form-control"
+                                maxlength="120"
+                                required
+                            >
+
+                            <div class="form-text">
+                                Our response will be sent to this email address.
+                            </div>
+
+                        </div>
+
+
+                        <div class="mb-3">
+
+                            <label class="form-label">
+                                Subject
+                            </label>
+
+                            <input
+                                type="text"
+                                name="subject"
+                                class="form-control"
+                                maxlength="150"
+                                required
+                            >
+
+                        </div>
+
+
+                        <div class="mb-3">
+
+                            <label class="form-label">
+                                Category
+                            </label>
+
+                            <select
+                                name="category"
+                                class="form-select"
+                                required
+                            >
+
+                                <option value="" selected disabled>
+                                    Select a category
+                                </option>
+
+                                {% for category in support_categories %}
+
+                                    <option value="{{ category }}">
+                                        {{ category.replace('_', ' ').title() }}
+                                    </option>
+
+                                {% endfor %}
+
+                            </select>
+
+                        </div>
+
+
+                        <div class="mb-3">
+
+                            <label class="form-label">
+                                Message
+                            </label>
+
+                            <textarea
+                                name="message"
+                                class="form-control"
+                                rows="7"
+                                required
+                            ></textarea>
+
+                        </div>
+
+
+                        <div class="d-flex justify-content-between">
+
+                            <a
+                                href="{{ url_for('help_center') }}"
+                                class="btn btn-outline-secondary"
+                            >
+                                ← Back to Help
+                            </a>
+
+                            <button
+                                type="submit"
+                                class="btn btn-dark"
+                            >
+                                Submit Query
+                            </button>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+
+            <div class="text-center mt-3">
+
+                <small class="text-muted">
+                    Your submitted query cannot be edited or deleted.
+                </small>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
