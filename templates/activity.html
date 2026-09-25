@@ -1,139 +1,198 @@
 {% extends "base.html" %}
 
+{% block title %}Activity Monitoring{% endblock %}
+
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="dms-activity-header">
 
     <div>
-        <h3 class="mb-1">Activity Monitoring</h3>
-        <p class="text-muted mb-0">
-            View your recent DMS account activity.
+        <span class="dms-activity-eyebrow">SECURITY TIMELINE</span>
+
+        <h1>Activity Monitoring</h1>
+
+        <p>
+            Review recent activity associated with your DMS account.
         </p>
     </div>
 
     <a href="{{ url_for('dashboard') }}"
        class="btn btn-outline-secondary">
-        ← Back to Dashboard
+        ← Dashboard
     </a>
 
 </div>
 
 
-<div class="card shadow-sm">
+<section class="dms-activity-card">
 
-    <div class="card-body">
+    <div class="dms-activity-card-header">
 
-        <h5 class="mb-3">Activity History</h5>
+        <div class="dms-activity-title">
+            <div class="dms-activity-icon">◷</div>
+
+            <div>
+                <h2>Activity History</h2>
+                <p>
+                    A record of important actions performed on your account.
+                </p>
+            </div>
+        </div>
 
         {% if activity_history %}
-
-        <div class="table-responsive">
-
-            <table class="table table-bordered table-hover table-striped align-middle">
-
-                <thead class="table-dark">
-                    <tr>
-                        <th>#</th>
-                        <th>Activity</th>
-                        <th>Date & Time</th>
-                        <th>Description</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-
-                    {% for event in activity_history %}
-
-                    <tr>
-
-                        <td>{{ loop.index }}</td>
-
-                        <td>
-                            {% if event.event_type == 'LOGIN' %}
-                                <span class="badge bg-success">
-                                    LOGIN
-                                </span>
-
-                            {% elif event.event_type == 'VAULT_ITEM_ADDED' %}
-                                <span class="badge bg-primary">
-                                    VAULT ADDED
-                                </span>
-
-                            {% elif event.event_type == 'VAULT_ITEM_UPDATED' %}
-                                <span class="badge bg-info text-dark">
-                                    VAULT UPDATED
-                                </span>
-
-                            {% elif event.event_type == 'NOMINEE_ADDED' %}
-                                <span class="badge bg-primary">
-                                    NOMINEE ADDED
-                                </span>
-
-                            {% elif event.event_type == 'NOMINEE_UPDATED' %}
-                                <span class="badge bg-info text-dark">
-                                    NOMINEE UPDATED
-                                </span>
-
-                            {% elif event.event_type == 'ACCOUNT_RESTORED' %}
-                                <span class="badge bg-success">
-                                    ACCOUNT RESTORED
-                                </span>
-
-                            {% elif event.event_type == 'ACCOUNT_DELETION_REQUESTED' %}
-                                <span class="badge bg-warning text-dark">
-                                    DELETION REQUESTED
-                                </span>
-
-                            {% elif event.event_type == 'SUPPORT_QUERY_CREATED' %}
-                                <span class="badge bg-primary">
-                                    SUPPORT QUERY
-                                </span>
-
-                            {% elif event.event_type == 'RELEASE_TRIGGERED' %}
-                                <span class="badge bg-warning text-dark">
-                                    RELEASE TRIGGERED
-                                </span>
-
-                            {% elif event.event_type == 'RELEASE_CANCELLED' %}
-                                <span class="badge bg-danger">
-                                    RELEASE CANCELLED
-                                </span>
-
-                            {% else %}
-                                <span class="badge bg-secondary">
-                                    {{ event.event_type }}
-                                </span>
-                            {% endif %}
-                        </td>
-
-                        <td>
-                            {{ event.event_time }}
-                        </td>
-
-                        <td>
-                            {{ event.description }}
-                        </td>
-
-                    </tr>
-
-                    {% endfor %}
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-        {% else %}
-
-        <div class="alert alert-info mb-0">
-            No activity recorded yet.
-        </div>
-
+            <span class="dms-activity-count">
+                {{ activity_history|length }} event{% if activity_history|length != 1 %}s{% endif %}
+            </span>
         {% endif %}
 
     </div>
 
-</div>
+
+    {% if activity_history %}
+
+    <div class="dms-activity-table-wrapper">
+
+        <table class="dms-activity-table">
+
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Activity</th>
+                    <th>Date & Time</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for event in activity_history %}
+
+                <tr>
+
+                    <td data-label="#">
+                        <span class="dms-activity-number">
+                            {{ loop.index }}
+                        </span>
+                    </td>
+
+
+                    <td data-label="Activity">
+
+                        {% if event.event_type == 'LOGIN' %}
+
+                            <span class="dms-activity-badge dms-event-success">
+                                LOGIN
+                            </span>
+
+                        {% elif event.event_type == 'VAULT_ITEM_ADDED' %}
+
+                            <span class="dms-activity-badge dms-event-primary">
+                                VAULT ADDED
+                            </span>
+
+                        {% elif event.event_type == 'VAULT_ITEM_UPDATED' %}
+
+                            <span class="dms-activity-badge dms-event-info">
+                                VAULT UPDATED
+                            </span>
+
+                        {% elif event.event_type == 'NOMINEE_ADDED' %}
+
+                            <span class="dms-activity-badge dms-event-primary">
+                                NOMINEE ADDED
+                            </span>
+
+                        {% elif event.event_type == 'NOMINEE_UPDATED' %}
+
+                            <span class="dms-activity-badge dms-event-info">
+                                NOMINEE UPDATED
+                            </span>
+
+                        {% elif event.event_type == 'ACCOUNT_RESTORED' %}
+
+                            <span class="dms-activity-badge dms-event-success">
+                                ACCOUNT RESTORED
+                            </span>
+
+                        {% elif event.event_type == 'ACCOUNT_DELETION_REQUESTED' %}
+
+                            <span class="dms-activity-badge dms-event-warning">
+                                DELETION REQUESTED
+                            </span>
+
+                        {% elif event.event_type == 'SUPPORT_QUERY_CREATED' %}
+
+                            <span class="dms-activity-badge dms-event-primary">
+                                SUPPORT QUERY
+                            </span>
+
+                        {% elif event.event_type == 'RELEASE_TRIGGERED' %}
+
+                            <span class="dms-activity-badge dms-event-warning">
+                                RELEASE TRIGGERED
+                            </span>
+
+                        {% elif event.event_type == 'RELEASE_CANCELLED' %}
+
+                            <span class="dms-activity-badge dms-event-danger">
+                                RELEASE CANCELLED
+                            </span>
+
+                        {% else %}
+
+                            <span class="dms-activity-badge dms-event-neutral">
+                                {{ event.event_type }}
+                            </span>
+
+                        {% endif %}
+
+                    </td>
+
+
+                    <td data-label="Date & Time">
+
+                        <span class="dms-activity-time">
+                            {{ event.event_time }}
+                        </span>
+
+                    </td>
+
+
+                    <td data-label="Description">
+
+                        <span class="dms-activity-description">
+                            {{ event.description }}
+                        </span>
+
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+    {% else %}
+
+    <div class="dms-activity-empty">
+
+        <div class="dms-activity-empty-icon">◷</div>
+
+        <h3>No activity yet</h3>
+
+        <p>
+            Important account activity will appear here as you use your DMS vault.
+        </p>
+
+    </div>
+
+    {% endif %}
+
+</section>
 
 {% endblock %}

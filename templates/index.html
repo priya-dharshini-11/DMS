@@ -1,11 +1,320 @@
 {% extends "base.html" %}
+
 {% block title %}Home{% endblock %}
+
 {% block content %}
 
-<div class="p-5 mb-4 bg-light rounded-3">
-  <div class="container-fluid py-5">
-    <h1 class="display-5 fw-bold">Dead-Man's-Switch Digital Vault</h1>
-    <p class="col-md-8 fs-5">A secure system that stores confidential digital information and releases it to trusted nominees after prolonged inactivity.</p>
-  </div>
-</div>
+<!-- =====================================================
+     HERO
+     ===================================================== -->
+<section class="dms-landing-hero">
+
+    <div class="dms-landing-hero-content">
+
+        <div class="dms-landing-badge">
+            <span class="dms-landing-badge-dot"></span>
+            Secure digital preparedness
+        </div>
+
+        <h1>
+            Keep what matters safe,
+            <span>even when you're away.</span>
+        </h1>
+
+        <p class="dms-landing-hero-text">
+            Dead-Man's-Switch Digital Vault securely stores your important
+            information and can release selected vault items to trusted
+            nominees after prolonged inactivity.
+        </p>
+
+        <div class="dms-landing-actions">
+            <a href="{{ url_for('register') }}"
+               class="btn btn-primary dms-landing-primary-btn">
+                Get Started
+            </a>
+
+            <a href="{{ url_for('login') }}"
+               class="btn btn-outline-secondary dms-landing-secondary-btn">
+                Sign In
+            </a>
+        </div>
+
+        <div class="dms-landing-trust">
+            <span>Private vault</span>
+            <span>•</span>
+            <span>Trusted nominees</span>
+            <span>•</span>
+            <span>Controlled release</span>
+        </div>
+
+    </div>
+
+    <div class="dms-landing-visual">
+
+        <div class="dms-landing-orbit dms-landing-orbit-one"></div>
+        <div class="dms-landing-orbit dms-landing-orbit-two"></div>
+
+        <div class="dms-landing-lock-card">
+
+            <div class="dms-landing-lock-icon">
+                🔐
+            </div>
+
+            <div>
+                <span class="dms-landing-lock-label">
+                    YOUR DIGITAL VAULT
+                </span>
+
+                <strong>
+                    Protected & prepared
+                </strong>
+            </div>
+
+            <div class="dms-landing-status">
+                <span></span>
+                Active
+            </div>
+
+        </div>
+
+        <div class="dms-landing-floating-card dms-landing-card-top">
+            <span>✓</span>
+            Trusted nominee
+        </div>
+
+        <div class="dms-landing-floating-card dms-landing-card-bottom">
+            <span>⏱</span>
+            Inactivity monitored
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     FEATURES
+     ===================================================== -->
+<section class="dms-landing-section">
+
+    <div class="dms-landing-section-heading">
+        <span class="dms-landing-eyebrow">BUILT AROUND CONTROL</span>
+
+        <h2>
+            Your information stays
+            <span>in your hands.</span>
+        </h2>
+
+        <p>
+            DMS gives you a simple way to prepare important digital
+            information for situations when you may not be able to
+            access it yourself.
+        </p>
+    </div>
+
+
+    <div class="row g-4">
+
+        <div class="col-md-4">
+            <div class="dms-landing-feature-card">
+
+                <div class="dms-landing-feature-icon">
+                    🔒
+                </div>
+
+                <h3>Private Vault</h3>
+
+                <p>
+                    Store important text and supported files inside
+                    your personal digital vault.
+                </p>
+
+            </div>
+        </div>
+
+
+        <div class="col-md-4">
+            <div class="dms-landing-feature-card">
+
+                <div class="dms-landing-feature-icon">
+                    👤
+                </div>
+
+                <h3>Trusted Nominees</h3>
+
+                <p>
+                    Choose trusted people who can receive the
+                    information you intentionally prepare for release.
+                </p>
+
+            </div>
+        </div>
+
+
+        <div class="col-md-4">
+            <div class="dms-landing-feature-card">
+
+                <div class="dms-landing-feature-icon">
+                    ⏱
+                </div>
+
+                <h3>Activity Based</h3>
+
+                <p>
+                    Your activity helps determine whether your
+                    Dead-Man's-Switch cycle should remain active.
+                </p>
+
+            </div>
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     HOW IT WORKS
+     ===================================================== -->
+<section class="dms-landing-process">
+
+    <div class="dms-landing-section-heading">
+
+        <span class="dms-landing-eyebrow">
+            HOW IT WORKS
+        </span>
+
+        <h2>
+            Simple by design.
+        </h2>
+
+        <p>
+            Prepare once, stay in control, and let DMS handle the
+            monitoring process.
+        </p>
+
+    </div>
+
+
+    <div class="dms-landing-steps">
+
+        <div class="dms-landing-step">
+
+            <div class="dms-landing-step-number">
+                01
+            </div>
+
+            <div>
+                <h3>Store</h3>
+
+                <p>
+                    Add the information or files you want to
+                    keep inside your vault.
+                </p>
+            </div>
+
+        </div>
+
+
+        <div class="dms-landing-step-line"></div>
+
+
+        <div class="dms-landing-step">
+
+            <div class="dms-landing-step-number">
+                02
+            </div>
+
+            <div>
+                <h3>Prepare</h3>
+
+                <p>
+                    Add trusted nominees and choose which vault
+                    items are prepared for release.
+                </p>
+            </div>
+
+        </div>
+
+
+        <div class="dms-landing-step-line"></div>
+
+
+        <div class="dms-landing-step">
+
+            <div class="dms-landing-step-number">
+                03
+            </div>
+
+            <div>
+                <h3>Stay Active</h3>
+
+                <p>
+                    Continue checking in to keep your DMS cycle
+                    active and under your control.
+                </p>
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     SUPPORT CTA
+     ===================================================== -->
+<section class="dms-landing-support">
+
+    <div>
+
+        <span class="dms-landing-eyebrow">
+            NEED HELP?
+        </span>
+
+        <h2>
+            Have questions about DMS?
+        </h2>
+
+        <p>
+            Learn how the system works or contact support
+            if you need assistance.
+        </p>
+
+    </div>
+
+    <a href="{{ url_for('help_center') }}"
+       class="btn btn-dark dms-landing-support-btn">
+        Visit Help Center
+    </a>
+
+</section>
+
+
+<!-- =====================================================
+     FINAL CTA
+     ===================================================== -->
+<section class="dms-landing-final-cta">
+
+    <div>
+
+        <h2>
+            Prepare your digital vault today.
+        </h2>
+
+        <p>
+            Create your account and start organizing the
+            information that matters.
+        </p>
+
+    </div>
+
+    <a href="{{ url_for('register') }}"
+       class="btn btn-light dms-landing-final-btn">
+        Create Your Vault
+    </a>
+
+</section>
+
 {% endblock %}

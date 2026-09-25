@@ -1,13 +1,221 @@
 {% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
 {% block content %}
-<h3>Welcome, {{ name }}</h3>
-<div class="row g-3 mt-2">
-  
-  <a href="/vault" class="btn btn-primary w-50 p-30 m-3">Add Vault Items</a>
-  <a href="{{ url_for('view_vault') }}" class="btn btn-primary w-50 p-30 m-3">View Vault Items</a>
-  <a href="/nominees" class="btn btn-primary w-50 p-30 m-3">Manage Nominees</a>
-  <a href="/activity" class="btn btn-primary w-50 p-30 m-3">Track Activity</a>
-  <a href="{{ url_for('account') }}" class="btn btn-outline-dark w-50 p-30 m-3">My Account</a>
+
+<!-- =====================================================
+     DASHBOARD HEADER
+     ===================================================== -->
+<div class="dms-dashboard-header">
+
+    <div>
+        <span class="dms-dashboard-eyebrow">
+            YOUR DMS VAULT
+        </span>
+
+        <h1>
+            Welcome, {{ name }}
+        </h1>
+
+        <p>
+            Manage your vault, trusted nominees, activity and account
+            from one place.
+        </p>
+    </div>
+
+    <div class="dms-dashboard-lock">
+        <span>🔐</span>
+        <div>
+            <strong>Private Space</strong>
+            <small>Your personal DMS controls</small>
+        </div>
+    </div>
 
 </div>
+
+
+<!-- =====================================================
+     MAIN DASHBOARD ACTIONS
+     ===================================================== -->
+<div class="dms-dashboard-grid">
+
+
+    <!-- Vault -->
+    <a href="{{ url_for('vault') }}"
+       class="dms-dashboard-card dms-dashboard-card-primary">
+
+        <div class="dms-dashboard-card-top">
+
+            <div class="dms-dashboard-icon">
+                🔐
+            </div>
+
+            <span class="dms-dashboard-arrow">↗</span>
+
+        </div>
+
+        <div class="dms-dashboard-card-content">
+
+            <h2>Add Vault Items</h2>
+
+            <p>
+                Store important information or supported files
+                inside your secure digital vault.
+            </p>
+
+        </div>
+
+        <span class="dms-dashboard-card-link">
+            Add something new
+        </span>
+
+    </a>
+
+
+    <!-- View Vault -->
+    <a href="{{ url_for('view_vault') }}"
+       class="dms-dashboard-card">
+
+        <div class="dms-dashboard-card-top">
+
+            <div class="dms-dashboard-icon">
+                📦
+            </div>
+
+            <span class="dms-dashboard-arrow">↗</span>
+
+        </div>
+
+        <div class="dms-dashboard-card-content">
+
+            <h2>View Vault Items</h2>
+
+            <p>
+                Review the information and files currently
+                stored in your vault.
+            </p>
+
+        </div>
+
+        <span class="dms-dashboard-card-link">
+            Open vault
+        </span>
+
+    </a>
+
+
+    <!-- Nominees -->
+    <a href="{{ url_for('nominees') }}"
+       class="dms-dashboard-card">
+
+        <div class="dms-dashboard-card-top">
+
+            <div class="dms-dashboard-icon">
+                👤
+            </div>
+
+            <span class="dms-dashboard-arrow">↗</span>
+
+        </div>
+
+        <div class="dms-dashboard-card-content">
+
+            <h2>Manage Nominees</h2>
+
+            <p>
+                Add and manage the trusted people connected
+                to your DMS release plan.
+            </p>
+
+        </div>
+
+        <span class="dms-dashboard-card-link">
+            Manage nominees
+        </span>
+
+    </a>
+
+
+    <!-- Activity -->
+    <a href="{{ url_for('activity') }}"
+       class="dms-dashboard-card">
+
+        <div class="dms-dashboard-card-top">
+
+            <div class="dms-dashboard-icon">
+                ⏱
+            </div>
+
+            <span class="dms-dashboard-arrow">↗</span>
+
+        </div>
+
+        <div class="dms-dashboard-card-content">
+
+            <h2>Track Activity</h2>
+
+            <p>
+                Review your recent activity and keep track of
+                your DMS interactions.
+            </p>
+
+        </div>
+
+        <span class="dms-dashboard-card-link">
+            View activity
+        </span>
+
+    </a>
+
+
+    <!-- Account -->
+    <a href="{{ url_for('account') }}"
+       class="dms-dashboard-card">
+
+        <div class="dms-dashboard-card-top">
+
+            <div class="dms-dashboard-icon">
+                ⚙
+            </div>
+
+            <span class="dms-dashboard-arrow">↗</span>
+
+        </div>
+
+        <div class="dms-dashboard-card-content">
+
+            <h2>My Account</h2>
+
+            <p>
+                Manage your account information and
+                account-related settings.
+            </p>
+
+        </div>
+
+        <span class="dms-dashboard-card-link">
+            Open account
+        </span>
+
+    </a>
+
+
+</div>
+
+
+<!-- =====================================================
+     DASHBOARD FOOTNOTE
+     ===================================================== -->
+<div class="dms-dashboard-note">
+
+    <span>💡</span>
+
+    <p>
+        Keep your information up to date and check your DMS activity
+        regularly to stay in control of your vault.
+    </p>
+
+</div>
+
 {% endblock %}

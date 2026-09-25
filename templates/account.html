@@ -4,153 +4,219 @@
 
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h3 class="mb-1">My Account</h3>
-    <p class="text-muted mb-0">
-      Manage your DMS account and security settings.
-    </p>
-  </div>
+<div class="dms-account-header">
+    <div>
+        <span class="dms-account-eyebrow">ACCOUNT & SECURITY</span>
+        <h1>My Account</h1>
+        <p>
+            Manage your personal information, account status and support requests.
+        </p>
+    </div>
 
-  <a href="{{ url_for('dashboard') }}" class="btn btn-outline-dark">
-    ← Dashboard
-  </a>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+        ← Dashboard
+    </a>
 </div>
 
-<div class="card mb-4">
-  <div class="card-body">
-    <div class="d-flex justify-content-between align-items-center mb-3">
 
-  <h5 class="card-title mb-0">
-    Account Information
-  </h5>
+<!-- ACCOUNT INFORMATION -->
 
-  <a
-      href="{{ url_for('edit_account') }}"
-      class="btn btn-outline-dark btn-sm"
-  >
-    Edit Details
-  </a>
+<section class="dms-account-card dms-account-info-card">
 
-</div>
+    <div class="dms-account-card-header">
+        <div class="dms-account-card-title">
+            <div class="dms-account-icon">👤</div>
 
-    <p class="mb-2">
-      <strong>Name:</strong> {{ user.name }}
-    </p>
+            <div>
+                <h2>Account Information</h2>
+                <p>Your registered account details.</p>
+            </div>
+        </div>
 
-    <p class="mb-2">
-      <strong>Email:</strong> {{ user.email }}
-    </p>
+        <a href="{{ url_for('edit_account') }}"
+           class="btn btn-outline-dark btn-sm">
+            Edit Details
+        </a>
+    </div>
 
-    <p class="mb-2">
-      <strong>Email verification:</strong>
-      {% if user.is_verified %}
-        <span class="text-success">Verified</span>
-      {% else %}
-        <span class="text-warning">Not verified</span>
-      {% endif %}
-    </p>
 
-    <p class="mb-0">
-      <strong>Account status:</strong>
-      {{ user.account_status }}
-    </p>
-  </div>
-</div>
+    <div class="dms-account-details">
+
+        <div class="dms-account-detail">
+            <span>Name</span>
+            <strong>{{ user.name }}</strong>
+        </div>
+
+        <div class="dms-account-detail">
+            <span>Email</span>
+            <strong>{{ user.email }}</strong>
+        </div>
+
+        <div class="dms-account-detail">
+            <span>Email Verification</span>
+
+            {% if user.is_verified %}
+                <strong class="dms-status dms-status-success">
+                    <span></span>
+                    Verified
+                </strong>
+            {% else %}
+                <strong class="dms-status dms-status-warning">
+                    <span></span>
+                    Not verified
+                </strong>
+            {% endif %}
+        </div>
+
+        <div class="dms-account-detail">
+            <span>Account Status</span>
+            <strong class="dms-status dms-status-neutral">
+                {{ user.account_status }}
+            </strong>
+        </div>
+
+    </div>
+
+</section>
+
 
 {% if user.account_status == "DELETION_PENDING" %}
 
-<div class="card border-warning">
-  <div class="card-body">
-    <h5 class="card-title text-warning">Account Deletion Pending</h5>
+<!-- RESTORE ACCOUNT -->
 
-    <p class="mb-2">
-      Your account is scheduled for permanent deletion on:
-    </p>
+<section class="dms-account-card dms-account-recovery-card">
 
-    <p class="fw-bold">
-      {{ user.deletion_scheduled_at }}
-    </p>
+    <div class="dms-account-card-header">
+        <div class="dms-account-card-title">
+            <div class="dms-account-icon dms-account-icon-recovery">↻</div>
 
-    <p class="text-muted mb-3">
-      Your account remains recoverable during the 30-day recovery period.
-    </p>
+            <div>
+                <h2>Account Deletion Pending</h2>
+                <p>Your account is currently recoverable.</p>
+            </div>
+        </div>
+    </div>
 
-    <form method="POST"
-          action="{{ url_for('restore_account') }}"
-          onsubmit="return confirm('Restore your account? A fresh 30-day DMS cycle will start.');">
 
-      <button type="submit" class="btn btn-success">
-        Restore Account
-      </button>
+    <div class="dms-account-recovery-content">
 
-    </form>
-  </div>
-</div>
+        <div class="dms-account-recovery-date">
+            <span>Scheduled deletion</span>
+            <strong>{{ user.deletion_scheduled_at }}</strong>
+        </div>
+
+        <p>
+            Your account remains recoverable during the
+            <strong>30-day recovery period</strong>.
+            Restoring your account will start a fresh DMS cycle.
+        </p>
+
+        <form method="POST"
+              action="{{ url_for('restore_account') }}"
+              onsubmit="return confirm('Restore your account? A fresh 30-day DMS cycle will start.');">
+
+            <button type="submit" class="btn btn-success">
+                Restore Account
+            </button>
+
+        </form>
+
+    </div>
+
+</section>
+
 
 {% else %}
 
-<div class="card border-danger">
-  <div class="card-body">
-    <h5 class="card-title text-danger">Delete Account</h5>
+<!-- SUPPORT -->
 
-    <p class="mb-2">
-      Account deletion uses a <strong>30-day recovery period</strong>.
-    </p>
+<section class="dms-account-card dms-account-support-card">
 
-    <p class="text-muted mb-3">
-      During this period, your vault and nominees remain freeze محفوظ.
-      You can restore your account before permanent deletion.
-    </p>
+    <div class="dms-account-card-header">
+        <div class="dms-account-card-title">
+            <div class="dms-account-icon dms-account-icon-support">?</div>
 
-    <form method="POST"
-          action="{{ url_for('request_account_deletion') }}"
-          onsubmit="return confirm('Are you sure you want to schedule your account for deletion? You will have 30 days to restore it.');">
-
-      <button type="submit" class="btn btn-outline-danger">
-        Delete Account
-      </button>
-
-    </form>
-
-    <div class="form-text mt-2">
-      Your account will not be permanently deleted immediately.
-    </div>
-  </div>
-</div>
-<br>
-<!-- SUPPORT & QUERIES -->
-
-<div class="card shadow-sm border-0 mb-4">
-
-    <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">🆘 Support & Queries</h5>
+            <div>
+                <h2>Support & Queries</h2>
+                <p>Get help with your account or DMS features.</p>
+            </div>
+        </div>
     </div>
 
-    <div class="card-body">
+    <div class="dms-account-support-content">
 
-        <h6 class="mb-2">
-            Need help?
-        </h6>
-
-        <p class="text-muted mb-3">
-            Create a support query if you have a question or problem
-            related to your account or DMS features.
+        <p>
+            Have a question or facing a problem?
+            Create a support query and keep track of your conversations.
         </p>
 
-        <a href="{{ url_for('support') }}"
-           class="btn btn-outline-primary">
-            View Support Queries
-        </a>
+        <div class="dms-account-support-actions">
 
-        <a href="{{ url_for('create_support_query') }}"
-           class="btn btn-primary ms-2">
-            + New Query
-        </a>
+            <a href="{{ url_for('support') }}"
+               class="btn btn-outline-primary">
+                View Support Queries
+            </a>
+
+            <a href="{{ url_for('create_support_query') }}"
+               class="btn btn-primary">
+                + New Query
+            </a>
+
+        </div>
 
     </div>
 
-</div>
+</section>
+
+<!-- DELETE ACCOUNT -->
+
+<section class="dms-account-card dms-account-danger-card">
+
+    <div class="dms-account-card-header">
+        <div class="dms-account-card-title">
+            <div class="dms-account-icon dms-account-icon-danger">!</div>
+
+            <div>
+                <h2>Account Management</h2>
+                <p>Manage your account deletion request.</p>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="dms-account-danger-content">
+
+        <div>
+            <h3>Delete Account</h3>
+
+            <p>
+                Account deletion uses a
+                <strong>30-day recovery period</strong>.
+            </p>
+
+            <p>
+                During this period, your vault and nominees remain frozen.
+                You can restore your account before permanent deletion.
+            </p>
+        </div>
+
+        <form method="POST"
+              action="{{ url_for('request_account_deletion') }}"
+              onsubmit="return confirm('Are you sure you want to schedule your account for deletion? You will have 30 days to restore it.');">
+
+            <button type="submit" class="btn btn-outline-danger">
+                Delete Account
+            </button>
+
+        </form>
+
+    </div>
+
+    <div class="dms-account-help-text">
+        Your account will not be permanently deleted immediately.
+    </div>
+
+</section>
 
 {% endif %}
 
