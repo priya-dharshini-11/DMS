@@ -5,9 +5,10 @@
 {% block content %}
 
 <div class="card shadow-sm p-4">
+
     <h3 class="mb-4">Edit Vault Item</h3>
 
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
 
         <div class="mb-3">
             <label class="form-label">Title</label>
@@ -22,37 +23,64 @@
             >
         </div>
 
-        <div class="mb-3">
-            <label class="form-label">Vault Item Type</label>
 
-            <input
-                type="text"
+        <div class="mb-3">
+
+            <label class="form-label">
+                Text Content
+                <small class="text-muted fw-normal ms-2">
+                    Optional if a file is present.
+                </small>
+            </label>
+
+            <textarea
+                name="content"
                 class="form-control"
-                value="{{ item.item_type|capitalize }}"
-                disabled
-            >
+                rows="6"
+                placeholder="Enter text content here"
+            >{{ item.content or '' }}</textarea>
+
         </div>
 
-        {% if item.item_type == 'file' %}
-            <div class="mb-3">
-                <label class="form-label">File</label>
-                <p class="text-muted mb-0">
-                    {{ item.original_file_name or item.file_name }}
-                </p>
-            </div>
-        {% else %}
-            <div class="mb-3">
-                <label class="form-label">Content</label>
 
-                <textarea
-                    class="form-control"
-                    rows="5"
-                    disabled
-                >{{ item.content }}</textarea>
-            </div>
-        {% endif %}
+        <div class="mb-3">
+
+            <label class="form-label">
+                File
+                <small class="text-muted fw-normal ms-2">
+                    Optional if text content is present.
+                </small>
+            </label>
+
+            {% if item.original_file_name or item.file_name %}
+                <p class="text-muted mb-2">
+                    Current file:
+                    <strong>
+                        {{ item.original_file_name or item.file_name }}
+                    </strong>
+                </p>
+
+                <small class="text-muted d-block mb-2">
+                    Choose another file only if you want to replace the current file.
+                </small>
+            {% endif %}
+
+            <input
+                type="file"
+                name="file"
+                class="form-control"
+            >
+
+        </div>
+
+
+        <div class="form-text mb-4">
+            Please provide either Text or File (or both).
+        </div>
+
 
         <div class="form-check mb-4">
+
             <input
                 class="form-check-input"
                 type="checkbox"
@@ -61,13 +89,22 @@
                 {% if item.release_enabled %}checked{% endif %}
             >
 
-            <label class="form-check-label" for="release_enabled">
+            <label
+                class="form-check-label"
+                for="release_enabled"
+            >
                 Release this item if the Dead Man's Switch is triggered
             </label>
+
         </div>
 
+
         <div>
-            <button type="submit" class="btn btn-dark">
+
+            <button
+                type="submit"
+                class="btn btn-dark"
+            >
                 Save Changes
             </button>
 
@@ -77,9 +114,11 @@
             >
                 ← Back to Vault
             </a>
+
         </div>
 
     </form>
+
 </div>
 
 {% endblock %}

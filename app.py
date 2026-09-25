@@ -2140,6 +2140,7 @@ def edit_vault(item_id):
     active_check = require_active_user()
     if active_check:
         return active_check
+
     if "user_id" not in session:
         return redirect(url_for("login"))
 
@@ -2162,42 +2163,152 @@ def edit_vault(item_id):
         return redirect(url_for("view_vault"))
 
     if request.method == "POST":
-        title = request.form.get("title", "").strip()
-        release_enabled = 1 if request.form.get("release_enabled") == "on" else 0
 
+        title = request.form.get("title", "").strip()
+        content = request.form.get("content", "").strip()
+        release_enabled = (
+            1 if request.form.get("release_enabled") == "on" else 0
+        )
+
+        file = request.files.get("file")
+        has_new_file = bool(file and file.filename)
+
+        # Validate title
         if not title:
-            flash("Title cannot be empty.")
             cur.close()
+            flash("Title cannot be empty.")
             return redirect(url_for("edit_vault", item_id=item_id))
 
         if len(title) > 150:
-            flash("Title is too long.")
             cur.close()
+            flash("Title is too long.")
             return redirect(url_for("edit_vault", item_id=item_id))
 
+        # Validate replacement file
+        if has_new_file and not allowed_file(file.filename):
+            cur.close()
+            flash("File type not allowed.")
+            return redirect(url_for("edit_vault", item_id=item_id))
+
+        # Keep the existing file unless a replacement is provided.
+        new_file_name = item["file_name"]
+        new_original_file_name = item["original_file_name"]
+        new_file_path = item["file_path"]
+        new_file_type = item["file_type"]
+
+        # Save replacement file if provided
+        if has_new_file:
+
+            os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+
+            new_original_file_name = secure_filename(file.filename)
+
+            new_file_name = (
+                f"{uuid.uuid4().hex}_{new_original_file_name}"
+            )
+
+            new_file_path = os.path.join(
+                app.config["UPLOAD_FOLDER"],
+                new_file_name
+            )
+
+            file.save(new_file_path)
+
+            new_file_type = file.mimetype
+
+        # Determine whether text and file exist after editing.
+        has_content = bool(content)
+        has_file = bool(new_file_name)
+
+        # At least one must remain.
+        if not has_content and not has_file:
+
+            # Remove newly uploaded file if validation fails after saving it.
+            if has_new_file and new_file_path:
+                if os.path.exists(new_file_path):
+                    os.remove(new_file_path)
+
+            cur.close()
+            flash("Please keep either text content or a file.")
+            return redirect(url_for("edit_vault", item_id=item_id))
+
+        # Determine the new item type.
+        if has_content and has_file:
+            item_type = "mixed"
+        elif has_content:
+            item_type = "text"
+        else:
+            item_type = "file"
+
+        old_file_name = item["file_name"]
+
+        # Update database
         cur.execute(
             """
             UPDATE vault_data
-            SET title=%s, release_enabled=%s
+            SET
+                title=%s,
+                item_type=%s,
+                content=%s,
+                file_name=%s,
+                original_file_name=%s,
+                file_path=%s,
+                file_type=%s,
+                release_enabled=%s
             WHERE id=%s AND user_id=%s
             """,
-            (title, release_enabled, item_id, session["user_id"])
+            (
+                title,
+                item_type,
+                content if has_content else None,
+                new_file_name,
+                new_original_file_name,
+                new_file_path,
+                new_file_type,
+                release_enabled,
+                item_id,
+                session["user_id"]
+            )
         )
 
-        cur.execute("""
-        INSERT INTO activity_history
-        (user_id, event_type, description)
-        VALUES (%s, 'VAULT_ITEM_UPDATED', 'Vault item updated')
-        """, (session["user_id"],))
+        cur.execute(
+            """
+            INSERT INTO activity_history
+                (user_id, event_type, description)
+            VALUES
+                (%s, 'VAULT_ITEM_UPDATED', 'Vault item updated')
+            """,
+            (session["user_id"],)
+        )
 
         mysql.connection.commit()
+
+        # Remove the old physical file only after successful DB update.
+        if (
+            has_new_file
+            and old_file_name
+            and old_file_name != new_file_name
+        ):
+
+            old_file_path = os.path.join(
+                app.config["UPLOAD_FOLDER"],
+                old_file_name
+            )
+
+            if os.path.exists(old_file_path):
+                os.remove(old_file_path)
+
         cur.close()
 
         flash("Vault item updated successfully.")
         return redirect(url_for("view_vault"))
 
     cur.close()
-    return render_template("edit_vault.html", item=item)
+
+    return render_template(
+        "edit_vault.html",
+        item=item
+    )
 
 @app.route("/delete-vault/<int:item_id>", methods=["POST"])
 def delete_vault(item_id):
