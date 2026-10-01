@@ -1,9 +1,117 @@
 {% extends "base.html" %}
+
 {% block content %}
-<h3>Admin Login</h3>
-<form method="post" class="card card-body">
-  <input class="form-control mb-3" type="email" name="email" placeholder="Admin Email" required>
-  <input class="form-control mb-3" type="password" name="password" placeholder="Admin Password" required>
-  <button class="btn btn-dark">Login as Admin</button>
-</form>
+
+<div class="dms-admin-login-page">
+
+    <div class="dms-admin-login-card">
+
+        <div class="dms-admin-login-header">
+
+            <div class="dms-admin-login-icon" aria-hidden="true">
+                🛡️
+            </div>
+
+            <p class="dms-admin-login-eyebrow">
+                DMS VAULT · ADMIN
+            </p>
+
+            <h1>
+                Admin Login
+            </h1>
+
+            <p>
+                Sign in to manage users, releases, support and system monitoring.
+            </p>
+
+        </div>
+
+
+        <form method="post" class="dms-admin-login-form">
+
+            <div class="dms-admin-login-field">
+
+                <label for="admin-email">
+                    Admin Email Address
+                </label>
+
+                <input
+                    id="admin-email"
+                    class="form-control"
+                    type="email"
+                    name="email"
+                    placeholder="Enter admin email"
+                    autocomplete="email"
+                    required
+                >
+
+            </div>
+
+
+            <div class="dms-admin-login-field">
+
+                <label for="admin-password">
+                    Admin Password
+                </label>
+
+                <div class="dms-password-input">
+
+                    <input
+                        id="admin-password"
+                        class="form-control"
+                        type="password"
+                        name="password"
+                        placeholder="Enter admin password"
+                        autocomplete="current-password"
+                        required
+                    >
+
+                    <button
+                        type="button"
+                        class="dms-password-toggle"
+                        aria-label="Show password"
+                        aria-pressed="false"
+                    >
+                        <svg
+                            class="dms-eye-icon"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/>
+                            <circle cx="12" cy="12" r="2.5"/>
+                        </svg>
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <button
+                type="submit"
+                class="btn btn-dark dms-admin-login-submit"
+            >
+                Login as Admin
+            </button>
+
+        </form>
+
+
+        <div class="dms-admin-login-footer">
+
+            <a href="{{ url_for('log') }}">
+                ← Back to Login Options
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+
 {% endblock %}

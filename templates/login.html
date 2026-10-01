@@ -1,36 +1,128 @@
 {% extends "base.html" %}
+
 {% block content %}
 
-<h3>Login</h3>
+<div class="dms-login-page">
 
-<form method="post" class="card card-body">
+    <div class="dms-login-card">
 
-  <input
-    class="form-control mb-3"
-    type="email"
-    name="email"
-    placeholder="Email"
-    required
-  >
+        <div class="dms-login-header">
 
-  <input
-    class="form-control mb-3"
-    type="password"
-    name="password"
-    placeholder="Password"
-    required
-  >
+            <div class="dms-login-icon" aria-hidden="true">
+                🔐
+            </div>
 
-  <div class="mb-3">
-    <a href="{{ url_for('forgot_password') }}">
-      Forgot Password?
-    </a>
-  </div>
+            <p class="dms-login-eyebrow">
+                DMS VAULT
+            </p>
 
-  <button class="btn btn-success">
-    Login
-  </button>
+            <h1>
+                Welcome Back
+            </h1>
 
-</form>
+            <p>
+                Sign in to access your secure digital vault.
+            </p>
+
+        </div>
+
+
+        <form method="post" class="dms-login-form">
+
+            <div class="dms-login-field">
+
+                <label for="login-email">
+                    Email Address
+                </label>
+
+                <input
+                    id="login-email"
+                    class="form-control"
+                    type="email"
+                    name="email"
+                    placeholder="Enter your email address"
+                    autocomplete="email"
+                    required
+                >
+
+            </div>
+
+
+            <div class="dms-login-field">
+
+                <div class="dms-login-password-label">
+
+                    <label for="login-password">
+                        Password
+                    </label>
+
+                    <a href="{{ url_for('forgot_password') }}">
+                        Forgot Password?
+                    </a>
+
+                </div>
+
+
+                <div class="dms-password-input">
+
+                    <input
+                        id="login-password"
+                        class="form-control"
+                        type="password"
+                        name="password"
+                        placeholder="Enter your password"
+                        autocomplete="current-password"
+                        required
+                    >
+
+                    <button
+                        type="button"
+                        class="dms-password-toggle"
+                        aria-label="Show password"
+                        aria-pressed="false"
+                    >
+                        <svg
+                            class="dms-eye-icon"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/>
+                            <circle cx="12" cy="12" r="2.5"/>
+                        </svg>
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <button
+                type="submit"
+                class="btn btn-dark dms-login-submit"
+            >
+                Sign In
+            </button>
+
+        </form>
+
+
+        <div class="dms-login-footer">
+
+            <span>Don't have an account?</span>
+
+            <a href="{{ url_for('register') }}">
+                Create an account
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
 
 {% endblock %}

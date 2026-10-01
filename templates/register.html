@@ -1,11 +1,117 @@
 {% extends "base.html" %}
+
 {% block content %}
-<h3>Register</h3>
-<form method="post" class="card card-body">
-  <input class="form-control mb-3" name="name" placeholder="Full Name" required>
-  <input class="form-control mb-3" type="email" name="email" placeholder="Email" required>
-  <input class="form-control mb-3" type="password" name="password" placeholder="Password" required>
-  <input class="form-control mb-3" type="text" name="admin_key" placeholder="Admin Registration Key (leave blank for user)">
-  <button class="btn btn-primary">Register</button>
-</form>
+
+<div class="dms-register-page">
+
+    <div class="dms-register-card">
+
+        <div class="dms-register-header">
+
+            <div class="dms-register-icon" aria-hidden="true">
+                🔐
+            </div>
+
+            <p class="dms-register-eyebrow">
+                DMS VAULT
+            </p>
+
+            <h1>
+                Create Your Account
+            </h1>
+
+            <p>
+                Create your secure account to start using your personal DMS Vault.
+            </p>
+
+        </div>
+
+
+        <form method="post" class="dms-register-form">
+
+            <div class="dms-register-field">
+
+                <label for="register-name">
+                    Full Name
+                </label>
+
+                <input
+                    id="register-name"
+                    class="form-control"
+                    type="text"
+                    name="name"
+                    placeholder="Enter your full name"
+                    autocomplete="name"
+                    required
+                >
+
+            </div>
+            <div class="dms-register-field">
+
+                <label for="register-password">
+                    Password
+                </label>
+
+                <div class="dms-password-input">
+
+                    <input
+                    id="register-password"
+                    class="form-control"
+                    type="password"
+                    name="password"
+                    placeholder="Create a password"
+                    autocomplete="new-password"
+                    required
+                    >
+
+                    <button
+                    type="button"
+                    class="dms-password-toggle"
+                    aria-label="Show password"
+                    aria-pressed="false"
+                    >
+                    <svg
+                    class="dms-eye-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                    >
+                <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/>
+                <circle cx="12" cy="12" r="2.5"/>
+                    </svg>
+                </button>
+
+            </div>
+
+        </div>
+
+
+            <button
+                type="submit"
+                class="btn btn-dark dms-register-submit"
+            >
+                Create Account
+            </button>
+
+        </form>
+
+
+        <div class="dms-register-footer">
+
+            <span>Already have an account?</span>
+
+            <a href="{{ url_for('log') }}">
+                Sign in
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+
 {% endblock %}

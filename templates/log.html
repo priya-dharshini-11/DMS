@@ -1,24 +1,94 @@
 {% extends "base.html" %}
+
 {% block content %}
-<style>
-    .custom{
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 80vh;
-        flex-direction: column;
-    }
-    .btns{
-        width: 100%;;
-    }
-</style>
-<div class="custom">
-    <img src="../static/Untitled design (1).png" alt="logoimage" class="img-circle" width="500"height="300">
-<div class="btn-group btns" >
-  <a href="/usrlogin" class="btn btn-primary w-50 p-3 m-3">User</a>
-  <a href="/alogin" class="btn btn-success w-50 p-3 m-3">Admin</a>
+
+<div class="dms-login-gateway">
+
+    <div class="dms-login-gateway-card">
+
+        <div class="dms-login-gateway-brand">
+            <img
+                src="{{ url_for('static', filename='Untitled design (1).png') }}"
+                alt="DMS Vault"
+                class="dms-login-gateway-logo"
+            >
+        </div>
+
+        <div class="dms-login-gateway-header">
+
+            <p class="dms-auth-eyebrow">
+                DMS VAULT
+            </p>
+
+            <h1>
+                Welcome Back
+            </h1>
+
+            <p>
+                Choose how you want to access the system.
+            </p>
+
+        </div>
+
+
+        <div class="dms-login-options">
+
+            <a
+                href="{{ url_for('login') }}"
+                class="dms-login-option dms-login-user"
+            >
+                <div class="dms-login-option-icon">
+                    👤
+                </div>
+
+                <div class="dms-login-option-content">
+                    <strong>User Login</strong>
+                    <span>
+                        Access your personal vault and DMS controls.
+                    </span>
+                </div>
+
+                <span class="dms-login-option-arrow" aria-hidden="true">
+                    →
+                </span>
+            </a>
+
+
+            <a
+                href="{{ url_for('alogin') }}"
+                class="dms-login-option dms-login-admin"
+            >
+                <div class="dms-login-option-icon">
+                    🛡️
+                </div>
+
+                <div class="dms-login-option-content">
+                    <strong>Admin Login</strong>
+                    <span>
+                        Manage users, releases, support and monitoring.
+                    </span>
+                </div>
+
+                <span class="dms-login-option-arrow" aria-hidden="true">
+                    →
+                </span>
+            </a>
+
+        </div>
+
+
+        <div class="dms-login-register">
+
+            <span>New to DMS Vault?</span>
+
+            <a href="{{ url_for('register') }}">
+                Create an account
+            </a>
+
+        </div>
+
+    </div>
+
 </div>
-<br>
-<p>New user?</p><p>Register now: <a href="/register">Register</a></p>
-</div>
-{%endblock%}
+
+{% endblock %}
