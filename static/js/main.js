@@ -60,5 +60,52 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
     });
+        // Logout confirmation
+    const logoutModal = document.getElementById("logoutConfirmModal");
+    const logoutLinks = document.querySelectorAll(
+        ".dms-logout-link[data-logout-confirm]"
+    );
+    const logoutCancelButtons = document.querySelectorAll(
+        "[data-logout-cancel]"
+    );
+
+    if (logoutModal) {
+
+        const openLogoutModal = (event) => {
+            event.preventDefault();
+
+            logoutModal.classList.add("is-open");
+            logoutModal.setAttribute("aria-hidden", "false");
+
+            document.body.classList.add("dms-modal-open");
+        };
+
+        const closeLogoutModal = () => {
+            logoutModal.classList.remove("is-open");
+            logoutModal.setAttribute("aria-hidden", "true");
+
+            document.body.classList.remove("dms-modal-open");
+        };
+
+        logoutLinks.forEach((link) => {
+            link.addEventListener("click", openLogoutModal);
+        });
+
+        logoutCancelButtons.forEach((button) => {
+            button.addEventListener("click", closeLogoutModal);
+        });
+
+        document.addEventListener("keydown", (event) => {
+
+            if (
+                event.key === "Escape" &&
+                logoutModal.classList.contains("is-open")
+            ) {
+                closeLogoutModal();
+            }
+
+        });
+
+    }
 
 });

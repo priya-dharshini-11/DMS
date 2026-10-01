@@ -76,7 +76,11 @@
 
           {% if session.get('role') %}
           <li class="nav-item">
-            <a class="nav-link dms-logout-link" href="{{ url_for('logout') }}">
+            <a
+              class="nav-link dms-logout-link"
+              href="{{ url_for('logout') }}"
+              data-logout-confirm
+            >
               Logout
             </a>
           </li>
@@ -117,11 +121,72 @@
       {% endif %}
       {% endwith %}
 
+
       {% block content %}{% endblock %}
 
     </div>
 
   </main>
+
+
+  <!-- Logout Confirmation Modal -->
+  <div
+    class="dms-logout-modal"
+    id="logoutConfirmModal"
+    aria-hidden="true"
+  >
+
+    <div
+      class="dms-logout-backdrop"
+      data-logout-cancel
+    ></div>
+
+    <div
+      class="dms-logout-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="logoutConfirmTitle"
+    >
+
+      <div class="dms-logout-icon" aria-hidden="true">
+        ↪
+      </div>
+
+      <div class="dms-logout-content">
+
+        <h3 id="logoutConfirmTitle">
+          Log out of DMS Vault?
+        </h3>
+
+        <p>
+          Are you sure you want to log out of your secure session?
+        </p>
+
+      </div>
+
+      <div class="dms-logout-actions">
+
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          data-logout-cancel
+        >
+          Cancel
+        </button>
+
+        <a
+          href="{{ url_for('logout') }}"
+          class="btn btn-dark"
+          data-logout-confirm
+        >
+          Log out
+        </a>
+
+      </div>
+
+    </div>
+
+  </div>
 
 
   <!-- Footer -->
