@@ -1178,28 +1178,56 @@ def deliver_pending_releases():
     finally:
         cur.close()
 
-def check_inactive_users():
-    cur = mysql.connection.cursor()
-    cur.execute("""
-        SELECT u.id, u.email, a.last_active_at
-        FROM users u
-        JOIN activity_logs a ON u.id = a.user_id
-    """)
-    users = cur.fetchall()
-    for user in users:
-        last_active = user["last_active_at"]
-        if last_active and datetime.now() - last_active > timedelta(days=1):
-            send_email(user["email"], "Dead Man's Switch Reminder", "Please confirm you are active.")
-    cur.close()
-
 @app.route("/")
 def index():
     return render_template("index.html")
 
+def run_scheduler_job(job_function):
+    """Run a scheduled DMS job inside the Flask application context."""
+    with app.app_context():
+        job_function()
+
 scheduler.add_job(
-    run_permanent_deletion_job,
+    run_scheduler_job,
+    "interval",
+    minutes=5,
+    args=[send_checkin_reminders],
+    id="dms_checkin_reminders",
+    replace_existing=True
+)
+
+scheduler.add_job(
+    run_scheduler_job,
+    "interval",
+    minutes=5,
+    args=[process_dms_cycles],
+    id="dms_lifecycle",
+    replace_existing=True
+)
+
+scheduler.add_job(
+    run_scheduler_job,
+    "interval",
+    minutes=5,
+    args=[process_release_ready_users],
+    id="dms_release_creation",
+    replace_existing=True
+)
+
+scheduler.add_job(
+    run_scheduler_job,
+    "interval",
+    minutes=5,
+    args=[deliver_pending_releases],
+    id="dms_release_delivery",
+    replace_existing=True
+)
+
+scheduler.add_job(
+    run_scheduler_job,
     "interval",
     minutes=10,
+    args=[run_permanent_deletion_job],
     id="permanent_account_deletion",
     replace_existing=True
 )
