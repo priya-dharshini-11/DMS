@@ -108,4 +108,98 @@ document.addEventListener("DOMContentLoaded", () => {
 
     }
 
+    // Reusable confirmation modal
+    const confirmModal = document.getElementById("dmsConfirmModal");
+    const confirmTitle = document.getElementById("dmsConfirmTitle");
+    const confirmMessage = document.getElementById("dmsConfirmMessage");
+    const confirmSubmit = document.getElementById("dmsConfirmSubmit");
+    const confirmCancelButtons = document.querySelectorAll(
+        "[data-confirm-cancel]"
+    );
+
+    let pendingConfirmationForm = null;
+
+    if (confirmModal && confirmTitle && confirmMessage && confirmSubmit) {
+
+        const closeConfirmModal = () => {
+            confirmModal.classList.remove("is-open");
+            confirmModal.setAttribute("aria-hidden", "true");
+            document.body.classList.remove("dms-modal-open");
+
+            pendingConfirmationForm = null;
+        };
+
+        const openConfirmModal = (form) => {
+            pendingConfirmationForm = form;
+
+            confirmTitle.textContent =
+                form.dataset.confirmTitle || "Are you sure?";
+
+            confirmMessage.textContent =
+                form.dataset.confirmMessage ||
+                "Please confirm that you want to continue.";
+
+            confirmSubmit.textContent =
+                form.dataset.confirmAction || "Confirm";
+
+            confirmSubmit.classList.remove(
+                "btn-danger",
+                "btn-primary",
+                "btn-warning",
+                "btn-success",
+                "btn-dark"
+            );
+
+            confirmSubmit.classList.add(
+                form.dataset.confirmButton || "btn-danger"
+            );
+
+            confirmModal.classList.add("is-open");
+            confirmModal.setAttribute("aria-hidden", "false");
+            document.body.classList.add("dms-modal-open");
+
+            confirmSubmit.focus();
+        };
+
+        document.querySelectorAll("form[data-confirm]").forEach((form) => {
+            form.addEventListener("submit", (event) => {
+                if (form.dataset.confirmed === "true") {
+                    delete form.dataset.confirmed;
+                    return;
+                }
+
+                event.preventDefault();
+                openConfirmModal(form);
+            });
+        });
+
+        confirmSubmit.addEventListener("click", () => {
+            if (!pendingConfirmationForm) {
+                closeConfirmModal();
+                return;
+            }
+
+            const form = pendingConfirmationForm;
+
+            form.dataset.confirmed = "true";
+            closeConfirmModal();
+
+            form.submit();
+        });
+
+        confirmCancelButtons.forEach((button) => {
+            button.addEventListener("click", closeConfirmModal);
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (
+                event.key === "Escape" &&
+                confirmModal.classList.contains("is-open")
+            ) {
+                closeConfirmModal();
+            }
+        });
+    }
+
+
 });

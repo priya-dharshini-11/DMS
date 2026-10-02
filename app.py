@@ -1506,6 +1506,94 @@ DMS
 
     return render_template("forgot_password.html")
 
+@app.route("/admin-forgot-password", methods=["GET", "POST"])
+def admin_forgot_password():
+    if request.method == "POST":
+        email = request.form["email"].strip().lower()
+
+        cur = mysql.connection.cursor()
+
+        cur.execute(
+            """
+            SELECT id, name, email
+            FROM users
+            WHERE email=%s
+              AND role='admin'
+            """,
+            (email,)
+        )
+
+        admin = cur.fetchone()
+
+        if admin:
+            # Invalidate any previous unused reset tokens
+            cur.execute(
+                """
+                UPDATE password_reset_tokens
+                SET used_at=NOW()
+                WHERE user_id=%s
+                  AND used_at IS NULL
+                """,
+                (admin["id"],)
+            )
+
+            # Generate a secure reset token
+            raw_token = secrets.token_urlsafe(32)
+            token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+
+            expires_at = datetime.now() + timedelta(hours=1)
+
+            cur.execute(
+                """
+                INSERT INTO password_reset_tokens
+                    (user_id, token_hash, expires_at)
+                VALUES
+                    (%s, %s, %s)
+                """,
+                (admin["id"], token_hash, expires_at)
+            )
+
+            mysql.connection.commit()
+            cur.close()
+
+            reset_link = url_for(
+                "reset_password",
+                token=raw_token,
+                _external=True
+            )
+
+            send_email(
+                admin["email"],
+                "Reset your DMS admin password",
+                f"""
+Hello {admin["name"]},
+
+We received a request to reset your DMS administrator password.
+
+Click the link below to create a new password:
+
+{reset_link}
+
+This password reset link expires in 1 hour and can only be used once.
+
+If you did not request a password reset, you can safely ignore this email.
+
+Regards,
+DMS
+"""
+            )
+        else:
+            cur.close()
+
+        flash(
+            "If an admin account exists with that email, "
+            "a password reset link has been sent."
+        )
+        return redirect(url_for("alogin"))
+
+    return render_template("admin_forgot_password.html")
+
+
 @app.route("/admin-user/<int:user_id>/reset-password", methods=["POST"])
 def admin_reset_password(user_id):
     admin_check = require_admin()

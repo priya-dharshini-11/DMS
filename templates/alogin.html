@@ -50,9 +50,17 @@
 
             <div class="dms-admin-login-field">
 
-                <label for="admin-password">
-                    Admin Password
-                </label>
+                <div class="dms-login-password-label">
+
+                    <label for="admin-password">
+                        Admin Password
+                    </label>
+
+                    <a href="{{ url_for('admin_forgot_password') }}">
+                        Forgot admin password?
+                    </a>
+
+                </div>
 
                 <div class="dms-password-input">
 

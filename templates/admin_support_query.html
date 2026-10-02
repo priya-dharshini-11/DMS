@@ -171,7 +171,11 @@
 
             <form method="POST"
                   action="{{ url_for('admin_delete_support_query', query_id=query.id) }}"
-                  onsubmit="return confirm('Delete this support query permanently from active queries? Its full audit record will be preserved.');">
+                  data-confirm
+                  data-confirm-title="Delete support query?"
+                  data-confirm-message="This query will be removed from active queries, but its full audit record will be preserved."
+                  data-confirm-action="Delete Query"
+                  data-confirm-button="btn-danger">
 
                 <button type="submit"
                         class="btn btn-outline-danger">

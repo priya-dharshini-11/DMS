@@ -113,7 +113,11 @@
 
         <form method="POST"
               action="{{ url_for('restore_account') }}"
-              onsubmit="return confirm('Restore your account? A fresh 30-day DMS cycle will start.');">
+              data-confirm
+              data-confirm-title="Restore your account?"
+              data-confirm-message="A fresh 30-day DMS cycle will start."
+              data-confirm-action="Restore Account"
+              data-confirm-button="btn-success">
 
             <button type="submit" class="btn btn-success">
                 Restore Account
@@ -202,7 +206,11 @@
 
         <form method="POST"
               action="{{ url_for('request_account_deletion') }}"
-              onsubmit="return confirm('Are you sure you want to schedule your account for deletion? You will have 30 days to restore it.');">
+              data-confirm
+              data-confirm-title="Schedule account deletion?"
+              data-confirm-message="You will have 30 days to restore your account before permanent deletion."
+              data-confirm-action="Schedule Deletion"
+              data-confirm-button="btn-danger">
 
             <button type="submit" class="btn btn-outline-danger">
                 Delete Account

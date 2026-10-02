@@ -60,12 +60,13 @@
           </li>
           {% endif %}
 
+          {% if not session.get('role') %}
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('help_center') }}">
               Help & Support
             </a>
           </li>
-
+          {% endif %}
           {% if not session.get('role') %}
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('log') }}">
@@ -127,6 +128,71 @@
     </div>
 
   </main>
+
+
+  <!-- Reusable Confirmation Modal -->
+  <div
+    class="dms-confirm-modal"
+    id="dmsConfirmModal"
+    aria-hidden="true"
+  >
+
+    <div
+      class="dms-confirm-backdrop"
+      data-confirm-cancel
+    ></div>
+
+    <div
+      class="dms-confirm-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dmsConfirmTitle"
+      aria-describedby="dmsConfirmMessage"
+    >
+
+      <div
+        class="dms-confirm-icon"
+        id="dmsConfirmIcon"
+        aria-hidden="true"
+      >
+        !
+      </div>
+
+      <div class="dms-confirm-content">
+
+        <h3 id="dmsConfirmTitle">
+          Are you sure?
+        </h3>
+
+        <p id="dmsConfirmMessage">
+          Please confirm that you want to continue.
+        </p>
+
+      </div>
+
+      <div class="dms-confirm-actions">
+
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          data-confirm-cancel
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          class="btn btn-danger"
+          id="dmsConfirmSubmit"
+        >
+          Confirm
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
 
 
   <!-- Logout Confirmation Modal -->

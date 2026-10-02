@@ -100,7 +100,11 @@
                     <form
                         method="post"
                         action="{{ url_for('delete_nominee', nominee_id=row.id) }}"
-                        onsubmit="return confirm('Are you sure you want to delete this nominee?');"
+                        data-confirm
+                        data-confirm-title="Delete nominee?"
+                        data-confirm-message="This nominee will be removed from your DMS release list."
+                        data-confirm-action="Delete Nominee"
+                        data-confirm-button="btn-danger"
                     >
 
                         <button
