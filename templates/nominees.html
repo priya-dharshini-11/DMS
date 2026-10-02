@@ -40,12 +40,12 @@
         required
     >
 
-    <input
-        class="form-control mb-3"
-        name="relation"
-        placeholder="Relation"
-        required
-    >
+    <select class="form-select mb-3" name="relation" required>
+        <option value="" selected disabled>Select relationship</option>
+        {% for relation in nominee_relations %}
+        <option value="{{ relation }}">{{ relation }}</option>
+        {% endfor %}
+    </select>
 
     <button class="btn btn-primary">
         Add Nominee

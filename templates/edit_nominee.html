@@ -24,12 +24,17 @@
   >
 
   <label class="form-label">Relation</label>
-  <input
-    class="form-control mb-3"
-    name="relation"
-    value="{{ nominee.relation }}"
-    required
-  >
+  <select class="form-select mb-3" name="relation" required>
+    <option value="" disabled>Select relationship</option>
+    {% for relation in nominee_relations %}
+    <option
+      value="{{ relation }}"
+      {% if nominee.relation == relation %}selected{% endif %}
+    >
+      {{ relation }}
+    </option>
+    {% endfor %}
+  </select>
 
   <div>
     <button type="submit" class="btn btn-primary">

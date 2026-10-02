@@ -7,6 +7,17 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 
 load_dotenv()
+
+NOMINEE_RELATIONS = {
+    "Parent",
+    "Spouse",
+    "Child",
+    "Sibling",
+    "Relative",
+    "Friend",
+    "Partner",
+    "Guardian",
+}
 from config import Config
 import os
 import re
@@ -2694,13 +2705,8 @@ def nominees():
             return redirect(url_for("nominees"))
 
         # Validate relation
-        if not relation:
-            flash("Relationship cannot be empty.")
-            cur.close()
-            return redirect(url_for("nominees"))
-
-        if len(relation) > 100:
-            flash("Relationship is too long.")
+        if relation not in NOMINEE_RELATIONS:
+            flash("Please select a valid nominee relationship.")
             cur.close()
             return redirect(url_for("nominees"))
 
@@ -2746,7 +2752,7 @@ def nominees():
     data = cur.fetchall()
     cur.close()
 
-    return render_template("nominees.html", data=data)
+    return render_template("nominees.html", data=data, nominee_relations=NOMINEE_RELATIONS)
 
 @app.route("/delete-nominee/<int:nominee_id>", methods=["POST"])
 def delete_nominee(nominee_id):
@@ -2839,13 +2845,8 @@ def edit_nominee(nominee_id):
             return redirect(url_for("edit_nominee", nominee_id=nominee_id))
 
         # Validate relation
-        if not relation:
-            flash("Relationship cannot be empty.")
-            cur.close()
-            return redirect(url_for("edit_nominee", nominee_id=nominee_id))
-
-        if len(relation) > 100:
-            flash("Relationship is too long.")
+        if relation not in NOMINEE_RELATIONS:
+            flash("Please select a valid nominee relationship.")
             cur.close()
             return redirect(url_for("edit_nominee", nominee_id=nominee_id))
 
@@ -2899,7 +2900,11 @@ def edit_nominee(nominee_id):
         flash("Nominee updated successfully.")
         return redirect(url_for("nominees"))
 
-    return render_template("edit_nominee.html", nominee=nominee)
+    return render_template(
+        "edit_nominee.html",
+        nominee=nominee,
+        nominee_relations=NOMINEE_RELATIONS
+    )
 
 @app.route("/activity")
 def activity():
