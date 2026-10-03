@@ -36,6 +36,9 @@ mail = Mail(app)
 # Bootstrap(app)
 scheduler = BackgroundScheduler(daemon=True)
 
+def app_url(path):
+    return app.config["APP_BASE_URL"].rstrip("/") + "/" + path.lstrip("/")
+
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -605,7 +608,7 @@ Please confirm that you are active to keep your DMS cycle active.
 </p>
 
 <p>
-<a href="http://127.0.0.1:5000/checkin/{token}"
+<a href="{app_url(f"/checkin/{token}")}"
    style="
        display:inline-block;
        padding:12px 24px;
@@ -1310,11 +1313,7 @@ def register():
         mysql.connection.commit()
         cur.close()
 
-        verification_link = url_for(
-            "verify_email",
-            token=raw_token,
-            _external=True
-        )
+        verification_link = app_url(f"/verify/{raw_token}")
 
         send_email(
             email,
@@ -1497,11 +1496,7 @@ def forgot_password():
             mysql.connection.commit()
             cur.close()
 
-            reset_link = url_for(
-                "reset_password",
-                token=raw_token,
-                _external=True
-            )
+            reset_link = app_url(f"/reset-password/{raw_token}")
 
             send_email(
                 user["email"],
@@ -1584,11 +1579,7 @@ def admin_forgot_password():
             mysql.connection.commit()
             cur.close()
 
-            reset_link = url_for(
-                "reset_password",
-                token=raw_token,
-                _external=True
-            )
+            reset_link = app_url(f"/reset-password/{raw_token}")
 
             send_email(
                 admin["email"],
@@ -1693,11 +1684,7 @@ def admin_reset_password(user_id):
         mysql.connection.commit()
         cur.close()
 
-        reset_link = url_for(
-            "reset_password",
-            token=raw_token,
-            _external=True
-        )
+        reset_link = app_url(f"/reset-password/{raw_token}")
 
         send_email(
             user["email"],
@@ -4295,11 +4282,7 @@ def admin_resend_verification(user_id):
         mysql.connection.commit()
         cur.close()
 
-        verification_link = url_for(
-            "verify_email",
-            token=raw_token,
-            _external=True
-        )
+        verification_link = app_url(f"/verify/{raw_token}")
 
         send_email(
             user["email"],
