@@ -1,88 +1,125 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% extends "base.html" %}
 
-    <title>DMS Check-in</title>
+{% block content %}
 
-    <link
-        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-        rel="stylesheet"
-    >
-</head>
+<div class="dms-login-page">
 
-<body>
+    <div class="dms-login-card">
 
-<div class="container mt-5">
+        <div class="dms-login-header">
 
-    <div class="row justify-content-center">
+            <div class="dms-login-icon" aria-hidden="true">
+                ⏱️
+            </div>
 
-        <div class="col-md-5">
+            <p class="dms-login-eyebrow">
+                DMS VAULT
+            </p>
 
-            <div class="card shadow">
+            <h1>
+                Confirm You're Active
+            </h1>
 
-                <div class="card-body p-4">
+            <p>
+                Sign in to confirm your activity and reset your Dead Man's Switch cycle.
+            </p>
 
-                    <h2 class="text-center mb-3">
-                        DMS Check-in
-                    </h2>
+        </div>
 
-                    <p class="text-center text-muted">
-                        Confirm that you are active by entering your
-                        DMS registration credentials.
-                    </p>
 
-                    {% with messages = get_flashed_messages() %}
-                        {% if messages %}
-                            {% for message in messages %}
-                                <div class="alert alert-danger">
-                                    {{ message }}
-                                </div>
-                            {% endfor %}
-                        {% endif %}
-                    {% endwith %}
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-danger mb-3">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 
-                    <form method="POST">
 
-                        <div class="mb-3">
-                            <label class="form-label">
-                                Email
-                            </label>
+        <form method="POST" class="dms-login-form">
 
-                            <input
-                                type="email"
-                                name="email"
-                                class="form-control"
-                                required
-                            >
-                        </div>
+            <div class="dms-login-field">
 
-                        <div class="mb-3">
-                            <label class="form-label">
-                                Password
-                            </label>
+                <label for="checkin-email">
+                    Email Address
+                </label>
 
-                            <input
-                                type="password"
-                                name="password"
-                                class="form-control"
-                                required
-                            >
-                        </div>
+                <input
+                    id="checkin-email"
+                    class="form-control"
+                    type="email"
+                    name="email"
+                    placeholder="Enter your email address"
+                    autocomplete="email"
+                    required
+                >
 
-                        <button
-                            type="submit"
-                            class="btn btn-primary w-100"
+            </div>
+
+
+            <div class="dms-login-field">
+
+                <label for="checkin-password">
+                    Password
+                </label>
+
+                <div class="dms-password-input">
+
+                    <input
+                        id="checkin-password"
+                        class="form-control"
+                        type="password"
+                        name="password"
+                        placeholder="Enter your password"
+                        autocomplete="current-password"
+                        required
+                    >
+
+                    <button
+                        type="button"
+                        class="dms-password-toggle"
+                        aria-label="Show password"
+                        aria-pressed="false"
+                    >
+                        <svg
+                            class="dms-eye-icon"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
                         >
-                            I'm Active
-                        </button>
-
-                    </form>
+                            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/>
+                            <circle cx="12" cy="12" r="2.5"/>
+                        </svg>
+                    </button>
 
                 </div>
 
             </div>
+
+
+            <button
+                type="submit"
+                class="btn btn-dark dms-login-submit"
+            >
+                I'm Active
+            </button>
+
+        </form>
+
+
+        <div class="dms-login-footer">
+
+            <span>Need to access your account?</span>
+
+            <a href="{{ url_for('log') }}">
+                Go to Login
+            </a>
 
         </div>
 
@@ -90,5 +127,4 @@
 
 </div>
 
-</body>
-</html>
+{% endblock %}

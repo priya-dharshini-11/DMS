@@ -368,65 +368,67 @@
             Administrative actions for this user.
         </p>
 
-        <form method="POST"
-              action="{{ url_for('admin_force_checkin', user_id=user.id) }}"
-              data-confirm
-              data-confirm-title="Force DMS check-in?"
-              data-confirm-message="Any active release for this user will be cancelled."
-              data-confirm-action="Force Check-in"
-              data-confirm-button="btn-primary">
+                <div class="d-flex flex-wrap gap-2">
 
-            <button type="submit" class="btn btn-primary">
-                Force Check-in
-            </button>
+            <form method="POST"
+                  action="{{ url_for('admin_force_checkin', user_id=user.id) }}"
+                  data-confirm
+                  data-confirm-title="Force DMS check-in?"
+                  data-confirm-message="Any active release for this user will be cancelled."
+                  data-confirm-action="Force Check-in"
+                  data-confirm-button="btn-primary"
+                  class="mb-0">
 
-        </form>
+                <button type="submit" class="btn btn-primary">
+                    Force Check-in
+                </button>
+            </form>
 
-        {% if not user.is_verified %}
-        <form method="POST"
-              action="{{ url_for('admin_resend_verification', user_id=user.id) }}"
-              data-confirm
-              data-confirm-title="Resend verification link?"
-              data-confirm-message="A new verification link will be sent to this user."
-              data-confirm-action="Resend Link"
-              data-confirm-button="btn-primary">
+            {% if not user.is_verified %}
+            <form method="POST"
+                  action="{{ url_for('admin_resend_verification', user_id=user.id) }}"
+                  data-confirm
+                  data-confirm-title="Resend verification link?"
+                  data-confirm-message="A new verification link will be sent to this user."
+                  data-confirm-action="Resend Link"
+                  data-confirm-button="btn-primary"
+                  class="mb-0">
 
-            <button type="submit" class="btn btn-outline-primary">
-              Resend Verification
-            </button>
+                <button type="submit" class="btn btn-outline-primary">
+                    Resend Verification
+                </button>
+            </form>
 
-        </form>
+            <form method="POST"
+                  action="{{ url_for('admin_manual_verify', user_id=user.id) }}"
+                  data-confirm
+                  data-confirm-title="Manually verify user?"
+                  data-confirm-message="This will mark the user's account as verified."
+                  data-confirm-action="Verify User"
+                  data-confirm-button="btn-success"
+                  class="mb-0">
 
-        {% endif %}
+                <button type="submit" class="btn btn-outline-success">
+                    Manually Verify
+                </button>
+            </form>
+            {% endif %}
 
-        {% if not user.is_verified %}
-        <form method="POST"
-              action="{{ url_for('admin_manual_verify', user_id=user.id) }}"
-              data-confirm
-              data-confirm-title="Manually verify user?"
-              data-confirm-message="This will mark the user's account as verified."
-              data-confirm-action="Verify User"
-              data-confirm-button="btn-success">
+            <form method="POST"
+                  action="{{ url_for('admin_reset_password', user_id=user.id) }}"
+                  data-confirm
+                  data-confirm-title="Initiate password reset?"
+                  data-confirm-message="A password reset link will be sent to this user's email."
+                  data-confirm-action="Send Reset Link"
+                  data-confirm-button="btn-warning"
+                  class="mb-0">
 
-            <button type="submit" class="btn btn-outline-success">
-              Manually Verify
-            </button>
+                <button type="submit" class="btn btn-outline-warning">
+                    Reset Password
+                </button>
+            </form>
 
-        </form>
-        {% endif %}
-
-        <form method="POST"
-              action="{{ url_for('admin_reset_password', user_id=user.id) }}"
-              data-confirm
-              data-confirm-title="Initiate password reset?"
-              data-confirm-message="A password reset link will be sent to this user's email."
-              data-confirm-action="Send Reset Link"
-              data-confirm-button="btn-warning">
-
-            <button type="submit" class="btn btn-outline-warning">
-                Reset Password
-            </button>
-        </form>
+        </div>
     </div>
 </div>
 
