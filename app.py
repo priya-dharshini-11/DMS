@@ -3368,6 +3368,9 @@ def admin_support():
 
     cur = mysql.connection.cursor()
 
+    # ------------------------------------------------------------
+    # ACTIVE USER SUPPORT QUERIES
+    # ------------------------------------------------------------
     cur.execute("""
         SELECT
             sq.id,
@@ -3388,6 +3391,9 @@ def admin_support():
 
     queries = cur.fetchall()
 
+    # ------------------------------------------------------------
+    # DELETED QUERY AUDIT RECORDS
+    # ------------------------------------------------------------
     cur.execute("""
         SELECT
             id,
@@ -3406,14 +3412,134 @@ def admin_support():
         LIMIT 100
     """)
 
-    deleted_queries = cur.fetchall()
+    audit_records = cur.fetchall()
+
+    # ------------------------------------------------------------
+    # ACTIVE QUERY SNAPSHOT
+    # ------------------------------------------------------------
+    cur.execute("""
+        SELECT
+            sq.id,
+            sq.subject,
+            sq.category,
+            sq.message
+        FROM support_queries sq
+        JOIN users u
+            ON sq.user_id = u.id
+        WHERE u.role='user'
+    """)
+
+    active_query_records = cur.fetchall()
+
+    # ------------------------------------------------------------
+    # SUPPORT ACTIVITY EVENTS
+    # ------------------------------------------------------------
+    cur.execute("""
+        SELECT
+            ah.id,
+            ah.user_id,
+            u.name AS user_name,
+            u.email AS user_email,
+            ah.event_type,
+            ah.event_time,
+            ah.description
+        FROM activity_history ah
+        JOIN users u
+            ON ah.user_id = u.id
+        WHERE ah.event_type IN (
+            'ADMIN_SUPPORT_REPLIED',
+            'ADMIN_SUPPORT_STATUS_UPDATED'
+        )
+        ORDER BY ah.event_time DESC
+        LIMIT 100
+    """)
+
+    activity_records = cur.fetchall()
 
     cur.close()
+
+    # ------------------------------------------------------------
+    # LOOKUPS
+    # ------------------------------------------------------------
+    active_queries_by_id = {
+        row["id"]: row
+        for row in active_query_records
+    }
+
+    audit_by_query_id = {
+        row["query_id"]: row
+        for row in audit_records
+    }
+
+    # ------------------------------------------------------------
+    # UNIFIED SUPPORT HISTORY
+    # ------------------------------------------------------------
+    history = []
+
+    # Deleted queries come from the audit table because it
+    # preserves the complete query snapshot.
+    for row in audit_records:
+        history.append({
+            "id": row["id"],
+            "query_id": row["query_id"],
+            "user_id": row["user_id"],
+            "user_name": row["user_name"],
+            "user_email": row["user_email"],
+            "subject": row["subject"],
+            "category": row["category"],
+            "message": row["message"],
+            "event_type": row["event_type"],
+            "event_time": row["event_time"],
+            "description": row["description"]
+        })
+
+    # Response/status events come from activity_history.
+    for row in activity_records:
+        match = re.search(
+            r"support query #(\d+)",
+            row["description"] or "",
+            re.IGNORECASE
+        )
+
+        if not match:
+            continue
+
+        query_id = int(match.group(1))
+
+        active_query = active_queries_by_id.get(query_id)
+        audit_query = audit_by_query_id.get(query_id)
+
+        source = active_query or audit_query
+
+        if not source:
+            continue
+
+        history.append({
+            "id": row["id"],
+            "query_id": query_id,
+            "user_id": row["user_id"],
+            "user_name": row["user_name"],
+            "user_email": row["user_email"],
+            "subject": source["subject"],
+            "category": source["category"],
+            "message": source.get("message"),
+            "event_type": row["event_type"],
+            "event_time": row["event_time"],
+            "description": row["description"]
+        })
+
+    history.sort(
+        key=lambda item: item["event_time"],
+        reverse=True
+    )
+
+    history = history[:100]
 
     return render_template(
         "admin_support.html",
         queries=queries,
-        deleted_queries=deleted_queries,
+        deleted_queries=history,
+        support_history=history,
         admin_name=session.get("admin_name")
     )
 
@@ -3478,6 +3604,15 @@ def admin_update_support_query(query_id):
             )
         )
 
+    if not admin_reply:
+        flash("Please write a reply before sending.")
+        return redirect(
+            url_for(
+                "admin_support_query_details",
+                query_id=query_id
+            )
+        )
+
     cur = mysql.connection.cursor()
 
     try:
@@ -3485,8 +3620,11 @@ def admin_update_support_query(query_id):
             SELECT
                 sq.id,
                 sq.user_id,
+                sq.subject,
+                sq.message,
                 sq.status,
-                u.name AS user_name
+                u.name AS user_name,
+                u.email AS user_email
             FROM support_queries sq
             JOIN users u
                 ON sq.user_id=u.id
@@ -3504,6 +3642,67 @@ def admin_update_support_query(query_id):
 
         old_status = query["status"]
 
+        email_body = f"""
+        <html>
+        <body>
+
+            <h2>DMS Support — Response to Query #{query_id}</h2>
+
+            <p>Hello {query["user_name"]},</p>
+
+            <p>
+                Thank you for contacting DMS Support.
+                Our administrator has responded to your query.
+            </p>
+
+            <hr>
+
+            <p>
+                <strong>Subject:</strong>
+                {query["subject"]}
+            </p>
+
+            <p>
+                <strong>Your Query:</strong>
+            </p>
+
+            <div>
+                {query["message"].replace(chr(10), "<br>")}
+            </div>
+
+            <hr>
+
+            <p>
+                <strong>DMS Support Response:</strong>
+            </p>
+
+            <div>
+                {admin_reply.replace(chr(10), "<br>")}
+            </div>
+
+            <p>
+                <strong>Status:</strong> {status}
+            </p>
+
+            <hr>
+
+            <p>
+                Regards,<br>
+                DMS Support Team
+            </p>
+
+        </body>
+        </html>
+        """
+
+        # Send the response first.
+        # Database changes happen only after the email succeeds.
+        send_email(
+            query["user_email"],
+            f"DMS Support — Response to Query #{query_id}",
+            email_body
+        )
+
         cur.execute("""
             UPDATE support_queries
             SET
@@ -3512,28 +3711,27 @@ def admin_update_support_query(query_id):
             WHERE id=%s
         """, (
             status,
-            admin_reply if admin_reply else None,
+            admin_reply,
             query_id
         ))
 
-        if admin_reply:
-            cur.execute("""
-                INSERT INTO activity_history
-                    (
-                        user_id,
-                        event_type,
-                        description
-                    )
-                VALUES
-                    (
-                        %s,
-                        'ADMIN_SUPPORT_REPLIED',
-                        %s
-                    )
-            """, (
-                query["user_id"],
-                f"Admin replied to support query #{query_id}."
-            ))
+        cur.execute("""
+            INSERT INTO activity_history
+                (
+                    user_id,
+                    event_type,
+                    description
+                )
+            VALUES
+                (
+                    %s,
+                    'ADMIN_SUPPORT_REPLIED',
+                    %s
+                )
+        """, (
+            query["user_id"],
+            f"Admin replied to support query #{query_id}."
+        ))
 
         if old_status != status:
             cur.execute("""
@@ -3557,11 +3755,16 @@ def admin_update_support_query(query_id):
 
         mysql.connection.commit()
 
-        flash("Support query updated.")
+        flash(
+            f"Reply sent successfully to {query['user_email']}."
+        )
 
     except Exception:
         mysql.connection.rollback()
-        raise
+        flash(
+            "Unable to send the reply. "
+            "The query was not updated."
+        )
 
     finally:
         cur.close()

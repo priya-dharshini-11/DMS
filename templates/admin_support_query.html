@@ -1,71 +1,66 @@
 {% extends "base.html" %}
 
+{% block title %}Support Query #{{ query.id }} — DMS Vault{% endblock %}
+
 {% block content %}
 
-<div class="container py-4">
+<div class="container py-5">
 
+    <!-- PAGE HEADER -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-
         <div>
-            <h2>Support Query #{{ query.id }}</h2>
+            <div class="text-uppercase small fw-semibold text-secondary mb-1">
+                DMS VAULT
+            </div>
+
+            <h1 class="mb-1">
+                Support Query #{{ query.id }}
+            </h1>
 
             <p class="text-muted mb-0">
-                Submitted by {{ query.user_name }}
-                · {{ query.user_email }}
+                Submitted by {{ query.user_name }} · {{ query.user_email }}
             </p>
         </div>
 
-        <a href="{{ url_for('admin_support') }}"
-           class="btn btn-outline-secondary">
-            ← Back
+        <a
+            href="{{ url_for('admin_support') }}"
+            class="btn btn-outline-secondary">
+            ← User Support
         </a>
-
     </div>
 
 
     <!-- USER INFORMATION -->
-
-    <div class="card shadow-sm border-0 mb-4">
-
-        <div class="card-header">
-            <strong>User Information</strong>
+    <div class="card shadow-sm mb-4">
+        <div class="card-header fw-semibold">
+            User Information
         </div>
 
         <div class="card-body">
-
-            <p class="mb-1">
+            <div class="mb-2">
                 <strong>Name:</strong>
                 {{ query.user_name }}
-            </p>
+            </div>
 
-            <p class="mb-0">
+            <div>
                 <strong>Email:</strong>
                 {{ query.user_email }}
-            </p>
-
+            </div>
         </div>
-
     </div>
 
 
-    <!-- QUERY -->
+    <!-- ORIGINAL QUERY -->
+    <div class="card shadow-sm mb-4">
 
-    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">
+                {{ query.subject }}
+            </span>
 
-        <div class="card-header">
-
-            <div class="d-flex justify-content-between">
-
-                <strong>
-                    {{ query.subject }}
-                </strong>
-
-                <span class="badge bg-secondary">
-                    {{ query.category }}
-                </span>
-
-            </div>
-
+            <span class="badge bg-secondary">
+                {{ query.category }}
+            </span>
         </div>
 
         <div class="card-body">
@@ -79,45 +74,57 @@
             </div>
 
         </div>
-
     </div>
 
 
-    <!-- ADMIN RESPONSE -->
+    <!-- SEND RESPONSE -->
+    <div class="card shadow-sm mb-4">
 
-    <div class="card shadow-sm border-0 mb-4">
-
-        <div class="card-header">
-            <strong>Admin Response & Status</strong>
+        <div class="card-header fw-semibold">
+            Send Response
         </div>
 
         <div class="card-body">
 
-            <form method="POST"
-                  action="{{ url_for('admin_update_support_query', query_id=query.id) }}">
+            <div class="alert alert-info">
+                The response will be sent to:
+                <strong>{{ query.user_email }}</strong>
+            </div>
 
+            <form
+                method="POST"
+                action="{{ url_for('admin_update_support_query', query_id=query.id) }}">
+
+                <!-- STATUS -->
                 <div class="mb-3">
 
-                    <label class="form-label">
+                    <label
+                        for="status"
+                        class="form-label fw-semibold">
                         Status
                     </label>
 
-                    <select name="status"
-                            class="form-select"
-                            required>
+                    <select
+                        id="status"
+                        name="status"
+                        class="form-select"
+                        required>
 
-                        <option value="OPEN"
-                            {% if query.status == 'OPEN' %}selected{% endif %}>
+                        <option
+                            value="OPEN"
+                            {% if query.status == "OPEN" %}selected{% endif %}>
                             OPEN
                         </option>
 
-                        <option value="IN_PROGRESS"
-                            {% if query.status == 'IN_PROGRESS' %}selected{% endif %}>
+                        <option
+                            value="IN_PROGRESS"
+                            {% if query.status == "IN_PROGRESS" %}selected{% endif %}>
                             IN PROGRESS
                         </option>
 
-                        <option value="RESOLVED"
-                            {% if query.status == 'RESOLVED' %}selected{% endif %}>
+                        <option
+                            value="RESOLVED"
+                            {% if query.status == "RESOLVED" %}selected{% endif %}>
                             RESOLVED
                         </option>
 
@@ -126,66 +133,96 @@
                 </div>
 
 
+                <!-- RESPONSE -->
                 <div class="mb-3">
 
-                    <label class="form-label">
+                    <label
+                        for="admin_reply"
+                        class="form-label fw-semibold">
                         Response
                     </label>
 
                     <textarea
+                        id="admin_reply"
                         name="admin_reply"
                         class="form-control"
                         rows="7"
-                        placeholder="Write your response to the user...">{{ query.admin_reply or '' }}</textarea>
+                        placeholder="Write your response to the user..."
+                        required></textarea>
 
                 </div>
 
 
-                <button type="submit"
-                        class="btn btn-primary">
-                    Save Response
+                <button
+                    type="submit"
+                    class="btn btn-primary">
+                    ✉ Send Reply
                 </button>
 
             </form>
 
         </div>
-
     </div>
 
 
-    <!-- DELETE -->
+    <!-- PREVIOUS RESPONSE -->
+    {% if query.admin_reply %}
 
-    <div class="card border-danger shadow-sm">
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-header fw-semibold">
+            Previous Response
+        </div>
 
         <div class="card-body">
 
-            <h6 class="text-danger">
-                Danger Zone
-            </h6>
+            <div class="border rounded p-3 bg-light">
+                {{ query.admin_reply | e | replace('\n', '<br>') | safe }}
+            </div>
 
-            <p class="text-muted small">
-                Deleting this query removes it from active support
-                queries. A complete snapshot will remain in the support
-                audit history.
+            <div class="text-muted small mt-3">
+                Last updated: {{ query.updated_at }}
+            </div>
+
+        </div>
+    </div>
+
+    {% endif %}
+
+
+    <!-- DANGER ZONE -->
+    <div class="card border-danger shadow-sm">
+
+        <div class="card-header text-danger fw-semibold">
+            Danger Zone
+        </div>
+
+        <div class="card-body">
+
+            <p class="text-muted mb-3">
+                Permanently delete this support query from the active support list.
+                Its full audit record will be preserved.
             </p>
 
-            <form method="POST"
-                  action="{{ url_for('admin_delete_support_query', query_id=query.id) }}"
-                  data-confirm
-                  data-confirm-title="Delete support query?"
-                  data-confirm-message="This query will be removed from active queries, but its full audit record will be preserved."
-                  data-confirm-action="Delete Query"
-                  data-confirm-button="btn-danger">
+            <form
+                method="POST"
+                action="{{ url_for('admin_delete_support_query', query_id=query.id) }}"
+                class="mb-0"
+                data-confirm="true"
+                data-confirm-title="Delete Support Query?"
+                data-confirm-message="Delete this support query permanently from active queries? Its full audit record will be preserved."
+                data-confirm-action="Delete Query"
+                data-confirm-button="danger">
 
-                <button type="submit"
-                        class="btn btn-outline-danger">
+                <button
+                    type="submit"
+                    class="btn btn-outline-danger">
                     Delete Query
                 </button>
 
             </form>
 
         </div>
-
     </div>
 
 </div>
